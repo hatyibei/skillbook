@@ -19,24 +19,22 @@ app.get("/", (req, res) => res.json({ status: "ok", service: "skillbook-api", ve
 // Search skills
 app.get("/api/skills", async (req, res) => {
   try {
-    const { q, category, agent, rarity, limit = 20, offset = 0 } = req.query;
-    let query = db.collection("skills").orderBy("installs", "desc").limit(Number(limit)).offset(Number(offset));
+    const { q, category, agent, rarity, limit = 50, offset = 0 } = req.query;
+    // Simple query — sort client-side to avoid composite index issues
+    const snapshot = await db.collection("skills").limit(Number(limit)).get();
+    let skills = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-    if (category) query = query.where("category", "==", category);
-    if (agent) query = query.where("agents", "array-contains", agent);
-    if (rarity) query = query.where("rarity", "==", rarity);
+    // Client-side filtering
+    if (category) skills = skills.filter(s => s.category === category);
+    if (agent) skills = skills.filter(s => s.agents?.includes(agent));
+    if (rarity) skills = skills.filter(s => s.rarity === rarity);
+    if (q) skills = skills.filter(s =>
+      s.name?.includes(q) || s.description?.includes(q) ||
+      s.description_ja?.includes(q) || s.tags?.some(t => t.includes(q)));
 
-    const snapshot = await query.get();
-    const skills = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    skills.sort((a, b) => (b.installs || 0) - (a.installs || 0));
 
-    // Client-side text search (Firestore doesn't have full-text search)
-    const filtered = q
-      ? skills.filter(s =>
-          s.name?.includes(q) || s.description?.includes(q) ||
-          s.description_ja?.includes(q) || s.tags?.some(t => t.includes(q)))
-      : skills;
-
-    res.json({ skills: filtered, total: filtered.length });
+    res.json({ skills, total: skills.length });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -79,12 +77,11 @@ app.post("/api/skills", async (req, res) => {
 // List sets
 app.get("/api/sets", async (req, res) => {
   try {
-    const { author, limit = 20 } = req.query;
-    let query = db.collection("skillsets").orderBy("installs", "desc").limit(Number(limit));
-    if (author) query = query.where("author", "==", author);
-
-    const snapshot = await query.get();
-    const sets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const { author, limit = 50 } = req.query;
+    const snapshot = await db.collection("skillsets").limit(Number(limit)).get();
+    let sets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    if (author) sets = sets.filter(s => s.author === author);
+    sets.sort((a, b) => (b.installs || 0) - (a.installs || 0));
     res.json({ sets, total: sets.length });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -126,10 +123,18 @@ app.post("/api/sets", async (req, res) => {
 
 app.get("/api/reviews/:targetId", async (req, res) => {
   try {
+    // Simple query without orderBy to avoid composite index requirement
     const snapshot = await db.collection("reviews")
       .where("targetId", "==", req.params.targetId)
-      .orderBy("createdAt", "desc").limit(50).get();
-    res.json({ reviews: snapshot.docs.map(d => ({ id: d.id, ...d.data() })) });
+      .limit(50).get();
+    const reviews = snapshot.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => {
+        const ta = a.createdAt?._seconds || 0;
+        const tb = b.createdAt?._seconds || 0;
+        return tb - ta;
+      });
+    res.json({ reviews });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
