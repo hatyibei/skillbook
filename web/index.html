@@ -110,6 +110,54 @@ h1{font-size:36px;color:var(--gold);text-shadow:3px 3px 0 rgba(0,0,0,.5);letter-
 /* Footer */
 footer{text-align:center;padding:28px 20px;border-top:1px solid rgba(255,255,255,.05);font-size:12px;color:var(--dim)}
 footer a{color:var(--blue);text-decoration:none}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10000;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+.modal-bg.show{display:flex}
+.modal{background:var(--panel);border:3px solid var(--gold);border-radius:4px;max-width:640px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 0 60px rgba(240,192,64,.15),8px 8px 0 rgba(0,0,0,.5);position:relative;animation:modalIn .2s ease}
+@keyframes modalIn{from{opacity:0;transform:scale(.95) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal-close{position:absolute;top:12px;right:16px;font-size:20px;color:var(--dim);cursor:pointer;background:none;border:none;transition:.15s;z-index:1}
+.modal-close:hover{color:var(--bright)}
+.modal-head{padding:28px 28px 0;display:flex;gap:16px;align-items:flex-start}
+.modal-icon{font-size:48px;filter:drop-shadow(0 0 12px rgba(240,192,64,.3))}
+.modal-info{flex:1}
+.modal-name{font-size:20px;color:var(--bright);margin-bottom:4px}
+.modal-en{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--dim);margin-bottom:8px}
+.modal-body{padding:20px 28px 28px}
+.modal-desc{font-size:13px;color:var(--text);line-height:1.8;margin-bottom:16px}
+.modal-section{margin-bottom:16px}
+.modal-label{font-size:11px;color:var(--gold);margin-bottom:6px;font-weight:bold}
+.install-box{background:var(--bg);border:2px solid var(--border);border-radius:2px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;cursor:pointer;transition:.15s}
+.install-box:hover{border-color:var(--gold)}
+.install-cmd{font-family:'Press Start 2P',monospace;font-size:9px;color:var(--green);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.copy-btn{font-size:11px;padding:4px 10px;background:rgba(240,192,64,.15);border:1px solid var(--gold);border-radius:2px;color:var(--gold);cursor:pointer;white-space:nowrap;transition:.15s}
+.copy-btn:hover{background:rgba(240,192,64,.3)}
+.copied{color:var(--green)!important;border-color:var(--green)!important;background:rgba(64,216,112,.15)!important}
+
+/* Star Rating */
+.stars-row{display:flex;gap:2px;margin-bottom:10px}
+.star{font-size:22px;cursor:pointer;transition:.15s;filter:grayscale(1) opacity(.4)}
+.star:hover,.star.on{filter:grayscale(0) opacity(1)}
+.star.on{text-shadow:0 0 8px rgba(240,192,64,.4)}
+.review-input{width:100%;background:var(--bg);border:2px solid var(--border);border-radius:2px;padding:10px 14px;font-family:'DotGothic16',monospace;font-size:13px;color:var(--text);outline:none;resize:vertical;min-height:60px;transition:border .2s}
+.review-input:focus{border-color:var(--gold)}
+.review-input::placeholder{color:var(--dim)}
+.submit-btn{margin-top:8px;padding:8px 20px;background:var(--gold);color:var(--bg);border:none;border-radius:2px;font-family:'DotGothic16',monospace;font-size:13px;cursor:pointer;transition:.2s;box-shadow:3px 3px 0 rgba(0,0,0,.3)}
+.submit-btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 rgba(0,0,0,.3)}
+.submit-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+/* Review List */
+.review-item{background:var(--bg);border:1px solid rgba(255,255,255,.06);border-radius:2px;padding:12px 14px;margin-bottom:8px}
+.review-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.review-author{font-size:12px;color:var(--blue)}
+.review-stars{font-size:12px;color:var(--gold)}
+.review-text{font-size:12px;color:var(--dim);line-height:1.6}
+.review-agent{font-size:10px;color:var(--dim);margin-top:4px;font-style:italic}
+.no-reviews{font-size:12px;color:var(--dim);text-align:center;padding:12px}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--gold);color:var(--bg);padding:10px 24px;border-radius:4px;font-size:13px;z-index:20000;transition:.3s;opacity:0;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,.4)}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
 </style>
 </head>
 <body>
@@ -168,6 +216,70 @@ footer a{color:var(--blue);text-decoration:none}
   <div class="cta-s">OSSで公開中 — GitHub でスターをお願いします ⭐</div>
   <div class="cli pb" style="font-size:9px;margin-top:14px;display:inline-flex"><span class="p">$</span><span>npx skillbook init</span><span class="cur"></span></div>
 </section>
+
+<!-- Skill Detail Modal -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal" id="modal">
+    <button class="modal-close" id="modalClose">&times;</button>
+    <div class="modal-head">
+      <div class="modal-icon" id="mIcon"></div>
+      <div class="modal-info">
+        <div class="modal-name" id="mName"></div>
+        <div class="modal-en" id="mEn"></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <span class="rarity" id="mRarity"></span>
+          <span class="rating" id="mRating"></span>
+          <span class="installs" id="mInstalls"></span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="modal-desc" id="mDesc"></div>
+      <div class="modal-section">
+        <div class="modal-label">タグ</div>
+        <div class="tags" id="mTags"></div>
+      </div>
+      <div class="modal-section">
+        <div class="modal-label">対応エージェント</div>
+        <div class="agents" id="mAgents" style="gap:6px;flex-wrap:wrap;display:flex"></div>
+      </div>
+      <div class="modal-section">
+        <div class="modal-label">インストール</div>
+        <div class="install-box" id="installBox1">
+          <span class="install-cmd" id="installCmd1"></span>
+          <span class="copy-btn" id="copyBtn1">COPY</span>
+        </div>
+        <div class="install-box" id="installBox2">
+          <span class="install-cmd" id="installCmd2"></span>
+          <span class="copy-btn" id="copyBtn2">COPY</span>
+        </div>
+      </div>
+      <div class="modal-section">
+        <div class="modal-label">レビューを書く</div>
+        <div class="stars-row" id="starsRow"></div>
+        <input class="review-input" id="reviewText" placeholder="使ってみた感想を書こう...（任意）">
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+          <select id="reviewAgent" style="background:var(--bg);border:2px solid var(--border);border-radius:2px;padding:6px 10px;font-family:'DotGothic16',monospace;font-size:12px;color:var(--text);outline:none">
+            <option value="claude-code">Claude Code</option>
+            <option value="codex">Codex</option>
+            <option value="cursor">Cursor</option>
+            <option value="copilot">Copilot</option>
+            <option value="gemini">Gemini</option>
+            <option value="goose">Goose</option>
+          </select>
+          <button class="submit-btn" id="submitReview" disabled>レビュー投稿</button>
+        </div>
+      </div>
+      <div class="modal-section">
+        <div class="modal-label">みんなのレビュー</div>
+        <div id="reviewList"><div class="no-reviews">まだレビューがありません</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast notification -->
+<div class="toast" id="toast"></div>
 
 <footer>
   <div>📖 スキルの書 / The SkillBook — v0.1.0</div>
@@ -265,13 +377,174 @@ function renderAll() {
   renderEquip();
 }
 
+// ===== Toast =====
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2500);
+}
+
+// ===== Copy to clipboard =====
+function copyCmd(text, btnEl) {
+  navigator.clipboard.writeText(text).then(() => {
+    btnEl.textContent = "COPIED!";
+    btnEl.classList.add("copied");
+    showToast("コマンドをコピーしました！");
+    setTimeout(() => { btnEl.textContent = "COPY"; btnEl.classList.remove("copied"); }, 2000);
+  });
+}
+
+// ===== Modal =====
+let currentSkill = null;
+let reviewRating = 0;
+
+function openModal(skill) {
+  currentSkill = skill;
+  reviewRating = 0;
+  const rc = {LEGENDARY:"r-l",EPIC:"r-e",RARE:"r-r",COMMON:"r-c"};
+  document.getElementById("mIcon").textContent = skill.icon;
+  document.getElementById("mName").textContent = skill.name;
+  document.getElementById("mEn").textContent = skill.name_en || skill.id?.toUpperCase() || "";
+  const rEl = document.getElementById("mRarity");
+  rEl.textContent = "\u2605 " + skill.rarity;
+  rEl.className = "rarity " + (rc[skill.rarity] || "r-c");
+  document.getElementById("mRating").innerHTML = "\u2605" + (Number(skill.rating)||0).toFixed(1);
+  document.getElementById("mInstalls").textContent = skill.installs + " installs";
+  document.getElementById("mDesc").textContent = skill.desc;
+  document.getElementById("mTags").innerHTML = (skill.tags||[]).map(t => '<span class="tag">'+t+'</span>').join("");
+  document.getElementById("mAgents").innerHTML = (skill.agents||[]).map(a => '<span class="ab">'+a+'</span>').join("");
+
+  // Install commands
+  const id = skill.id || skill.name_en?.toLowerCase() || "skill";
+  document.getElementById("installCmd1").textContent = "npx skillbook install " + id;
+  document.getElementById("installCmd2").textContent = "npx skillbook add " + id + " --import";
+
+  // Reset review form
+  renderStars(0);
+  document.getElementById("reviewText").value = "";
+  document.getElementById("submitReview").disabled = true;
+
+  // Load reviews
+  loadReviews(id);
+
+  document.getElementById("modalBg").classList.add("show");
+  document.body.style.overflow = "hidden";
+}
+
+function closeModal() {
+  document.getElementById("modalBg").classList.remove("show");
+  document.body.style.overflow = "";
+  currentSkill = null;
+}
+
+document.getElementById("modalClose").onclick = closeModal;
+document.getElementById("modalBg").onclick = (e) => { if (e.target.id === "modalBg") closeModal(); };
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
+
+// Install copy buttons
+document.getElementById("installBox1").onclick = () => copyCmd(document.getElementById("installCmd1").textContent, document.getElementById("copyBtn1"));
+document.getElementById("installBox2").onclick = () => copyCmd(document.getElementById("installCmd2").textContent, document.getElementById("copyBtn2"));
+
+// Track install on copy
+document.getElementById("installBox1").addEventListener("click", () => trackInstall());
+document.getElementById("installBox2").addEventListener("click", () => trackInstall());
+
+function trackInstall() {
+  if (!currentSkill) return;
+  fetch(API_BASE + "/api/track/install", {
+    method: "POST", headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ skillId: currentSkill.id, agent: "web-copy" }),
+  }).catch(() => {});
+}
+
+// ===== Star Rating =====
+function renderStars(selected) {
+  const row = document.getElementById("starsRow");
+  row.innerHTML = "";
+  for (let i = 1; i <= 5; i++) {
+    const s = document.createElement("span");
+    s.className = "star" + (i <= selected ? " on" : "");
+    s.textContent = "\u2B50";
+    s.onclick = () => {
+      reviewRating = i;
+      renderStars(i);
+      document.getElementById("submitReview").disabled = false;
+    };
+    s.onmouseenter = () => { row.querySelectorAll(".star").forEach((el, idx) => { el.classList.toggle("on", idx < i); }); };
+    row.appendChild(s);
+  }
+  row.onmouseleave = () => { row.querySelectorAll(".star").forEach((el, idx) => { el.classList.toggle("on", idx < selected); }); };
+}
+
+// ===== Submit Review =====
+document.getElementById("submitReview").onclick = async () => {
+  if (!currentSkill || reviewRating === 0) return;
+  const btn = document.getElementById("submitReview");
+  btn.disabled = true;
+  btn.textContent = "送信中...";
+  try {
+    const res = await fetch(API_BASE + "/api/reviews", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({
+        targetId: currentSkill.id,
+        targetType: "skill",
+        author: "anonymous",
+        rating: reviewRating,
+        comment: document.getElementById("reviewText").value.trim(),
+        agentUsed: document.getElementById("reviewAgent").value,
+      }),
+    });
+    if (!res.ok) throw new Error("送信エラー");
+    showToast("レビューを投稿しました！ ありがとう！");
+    document.getElementById("reviewText").value = "";
+    reviewRating = 0;
+    renderStars(0);
+    loadReviews(currentSkill.id);
+    // Refresh skill data
+    loadFromApi();
+  } catch (e) {
+    showToast("レビュー投稿に失敗しました...");
+  }
+  btn.disabled = true;
+  btn.textContent = "レビュー投稿";
+};
+
+// ===== Load Reviews =====
+async function loadReviews(skillId) {
+  const el = document.getElementById("reviewList");
+  el.innerHTML = '<div class="no-reviews">読み込み中...</div>';
+  try {
+    const res = await fetch(API_BASE + "/api/reviews/" + skillId);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    const reviews = data.reviews || [];
+    if (reviews.length === 0) {
+      el.innerHTML = '<div class="no-reviews">まだレビューがありません — 最初のレビューを書こう！</div>';
+      return;
+    }
+    el.innerHTML = reviews.map(r => `
+      <div class="review-item">
+        <div class="review-head">
+          <span class="review-author">${r.author || "anonymous"}</span>
+          <span class="review-stars">${"\u2B50".repeat(r.rating||0)}</span>
+        </div>
+        ${r.comment ? '<div class="review-text">'+r.comment+'</div>' : ''}
+        ${r.agentUsed ? '<div class="review-agent">使用エージェント: '+r.agentUsed+'</div>' : ''}
+      </div>
+    `).join("");
+  } catch (e) {
+    el.innerHTML = '<div class="no-reviews">レビューの読み込みに失敗しました</div>';
+  }
+}
+
 // ===== Render =====
 let activeCategory = "all";
 
 function renderCategories() {
   const el = document.getElementById("catTabs");
   el.innerHTML = CATEGORIES.map(c =>
-    `<div class="tab ${c.id===activeCategory?"on":""}" data-cat="${c.id}">${c.label}</div>`
+    '<div class="tab '+(c.id===activeCategory?"on":"")+'" data-cat="'+c.id+'">'+c.label+'</div>'
   ).join("");
   el.querySelectorAll(".tab").forEach(t => t.onclick = () => {
     activeCategory = t.dataset.cat;
@@ -280,7 +553,8 @@ function renderCategories() {
   });
 }
 
-function renderSkills(query = "") {
+function renderSkills(query) {
+  query = query || "";
   const el = document.getElementById("skillGrid");
   const filtered = SKILLS_DATA.filter(s => {
     if (activeCategory !== "all" && s.category !== activeCategory) return false;
@@ -296,18 +570,26 @@ function renderSkills(query = "") {
 
   const rc = {LEGENDARY:"r-l",EPIC:"r-e",RARE:"r-r",COMMON:"r-c"};
   const bc = {LEGENDARY:"pg",EPIC:"pb",RARE:"pb",COMMON:"pb"};
-  el.innerHTML = filtered.map(s => `
-    <div class="card ${bc[s.rarity]}">
-      <div class="card-h"><span class="card-icon">${s.icon}</span><span class="rarity ${rc[s.rarity]}">★ ${s.rarity}</span></div>
+  el.innerHTML = filtered.map((s, i) => `
+    <div class="card ${bc[s.rarity]}" data-idx="${i}">
+      <div class="card-h"><span class="card-icon">${s.icon}</span><span class="rarity ${rc[s.rarity]}">\u2605 ${s.rarity}</span></div>
       <div class="card-name">${s.name}</div>
       <div class="card-desc">${s.desc}</div>
-      <div class="tags">${s.tags.map(t=>`<span class="tag">${t}</span>`).join("")}</div>
+      <div class="tags">${s.tags.map(t=>'<span class="tag">'+t+'</span>').join("")}</div>
       <div class="card-f">
-        <div class="agents">${s.agents.map(a=>`<span class="ab">${a}</span>`).join("")}</div>
-        <div><span class="rating">★${s.rating}</span><span class="installs">${s.installs}</span></div>
+        <div class="agents">${s.agents.map(a=>'<span class="ab">'+a+'</span>').join("")}</div>
+        <div><span class="rating">\u2605${(Number(s.rating)||0).toFixed(1)}</span><span class="installs">${s.installs}</span></div>
       </div>
     </div>
   `).join("");
+
+  // Add click handlers
+  el.querySelectorAll(".card").forEach(card => {
+    card.onclick = () => {
+      const skill = filtered[Number(card.dataset.idx)];
+      if (skill) openModal(skill);
+    };
+  });
 }
 
 function renderEquip() {
@@ -322,11 +604,11 @@ function renderEquip() {
   pl.innerHTML = SETS_DATA.map(s => `
     <div class="preset ${s.equipped?"on":""}" data-set="${s.name}">
       <div class="preset-h"><span class="preset-n">${s.label}</span>${s.equipped?'<span class="preset-b">EQUIPPED</span>':''}</div>
-      <div class="preset-s">${s.skills.map(sk=>`<span class="ps">${sk}</span>`).join("")}</div>
+      <div class="preset-s">${s.skills.map(sk=>'<span class="ps">'+sk+'</span>').join("")}</div>
     </div>
   `).join("");
   pl.querySelectorAll(".preset").forEach(p => p.onclick = () => {
-    document.getElementById("cliCmd").textContent = `npx skillbook equip "${p.dataset.set}"`;
+    document.getElementById("cliCmd").textContent = 'npx skillbook equip "' + p.dataset.set + '"';
   });
 }
 
