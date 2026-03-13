@@ -193,7 +193,7 @@ footer a{color:var(--blue);text-decoration:none}
 <section class="sec">
   <div class="equip pg">
     <div class="sec-t">🎮 スキルセット装備</div>
-    <div class="sec-d">セットをクリックして中身を確認 → ワンクリックで装備切り替え。スロット制限なし、何個でも組み合わせ自由！</div>
+    <div class="sec-d">セットを選んで「装備する」→ 表示されるコマンドをターミナルで実行 → エージェントにスキルが一括セットアップされます。複数セット同時装備OK！</div>
     <div id="setList" style="display:flex;flex-direction:column;gap:12px;margin-top:16px"></div>
     <div style="text-align:center;margin-top:20px">
       <div class="cli pb" id="equipCliBar"><span class="p">$</span><span id="cliCmd">npx skillbook equip "dev-review-set"</span><span class="cur"></span></div>
@@ -603,9 +603,10 @@ function renderEquip() {
         </div>
       </div>
       <div class="set-detail" id="setDetail${i}">
+        <div style="font-size:11px;color:var(--dim);margin-top:10px;line-height:1.6">含まれるスキル（装備するとエージェントの skills/ に一括配置）:</div>
         <div class="set-skills">${s.skills.map(sk=>'<span class="set-skill">'+sk+'</span>').join("")}</div>
         <div class="set-actions">
-          <button class="set-btn set-btn-equip ${s.equipped?'active':''}" data-set="${s.name}">${s.equipped?'装備中':'装備する'}</button>
+          <button class="set-btn set-btn-equip ${s.equipped?'active':''}" data-set="${s.name}">${s.equipped?'解除する':'装備する'}</button>
           <button class="set-btn set-btn-fork" data-set="${s.name}">フォークして編集</button>
           <button class="set-btn set-btn-copy" data-set="${s.name}">コマンドコピー</button>
         </div>
@@ -627,9 +628,17 @@ function renderEquip() {
     btn.onclick = (e) => {
       e.stopPropagation();
       const setName = btn.dataset.set;
-      SETS_DATA.forEach(s => s.equipped = (s.name === setName) ? !s.equipped : s.equipped);
-      document.getElementById("cliCmd").textContent = 'npx skillbook equip "' + setName + '"';
-      showToast('「' + setName + '」を装備しました！');
+      const target = SETS_DATA.find(s => s.name === setName);
+      if (!target) return;
+      const wasEquipped = target.equipped;
+      target.equipped = !wasEquipped;
+      if (wasEquipped) {
+        document.getElementById("cliCmd").textContent = 'npx skillbook unequip "' + setName + '"';
+        showToast('「' + setName + '」を解除しました');
+      } else {
+        document.getElementById("cliCmd").textContent = 'npx skillbook equip "' + setName + '"';
+        showToast('「' + setName + '」を装備しました！ ターミナルでコマンドを実行してね');
+      }
       renderEquip();
     };
   });
