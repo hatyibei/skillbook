@@ -445,7 +445,7 @@ body{padding-top:42px}
   </div>
 
   <div style="text-align:center;margin-top:20px;font-size:12px;color:var(--dim)">
-    ※ Stripe決済リンクは準備中です。<a href="https://github.com/hatyibei/skillbook" style="color:var(--blue)">GitHubスポンサー</a>からも応援できます。
+    Stripe決済で安全にお支払いいただけます。<a href="https://github.com/hatyibei/skillbook" style="color:var(--blue)">GitHubスポンサー</a>からも応援できます。
   </div>
 </section>
 </div>
@@ -1067,12 +1067,11 @@ async function renderMyPage() {
 
 // ===== Sponsor =====
 function openSponsor(tier) {
-  // Stripe Payment Links — replace with actual links when ready
   const links = {
-    coffee: "https://github.com/hatyibei/skillbook",
-    lunch: "https://github.com/hatyibei/skillbook",
-    dinner: "https://github.com/hatyibei/skillbook",
-    patron: "https://github.com/hatyibei/skillbook",
+    coffee: "https://buy.stripe.com/dRmbIU7ri5SRcrB4lO3F600",
+    lunch: "https://buy.stripe.com/eVqbIU4f64ON4Z9aKc3F601",
+    dinner: "https://buy.stripe.com/eVqbIU4f64ON4Z9aKc3F602",
+    patron: "https://buy.stripe.com/3cIaEQh1S2GF77hdWo3F603",
   };
   window.open(links[tier] || links.coffee, "_blank");
 }
