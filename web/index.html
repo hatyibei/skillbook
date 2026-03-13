@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>スキルの書 — The SkillBook</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&display=swap');
+:root{--bg:#0a0a1a;--panel:#12122a;--card:#1a1a3e;--border:#3a3a6e;--gold:#f0c040;--blue:#40a0f0;--green:#40d870;--red:#f04060;--purple:#a060f0;--text:#e0e0f0;--dim:#8080a0;--bright:#fff}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'DotGothic16',monospace;min-height:100vh}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.03) 2px,rgba(0,0,0,.03) 4px);pointer-events:none;z-index:9999}
+.pb{border:3px solid var(--border);box-shadow:inset 2px 2px 0 rgba(255,255,255,.05),inset -2px -2px 0 rgba(0,0,0,.3),4px 4px 0 rgba(0,0,0,.4)}
+.pg{border:3px solid var(--gold);box-shadow:inset 2px 2px 0 rgba(240,192,64,.15),inset -2px -2px 0 rgba(0,0,0,.3),4px 4px 0 rgba(0,0,0,.4),0 0 20px rgba(240,192,64,.1)}
+
+/* Header */
+header{text-align:center;padding:40px 20px 24px;position:relative}
+header::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(240,192,64,.08) 0%,transparent 60%);pointer-events:none}
+.logo{font-size:56px;animation:float 3s ease-in-out infinite;filter:drop-shadow(0 0 20px rgba(240,192,64,.3))}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+h1{font-size:36px;color:var(--gold);text-shadow:3px 3px 0 rgba(0,0,0,.5);letter-spacing:4px;margin:8px 0 4px}
+.sub{font-family:'Press Start 2P',monospace;font-size:10px;color:var(--dim);letter-spacing:2px}
+
+/* Search */
+.search{max-width:600px;margin:20px auto 0;position:relative}
+.search input{width:100%;background:var(--panel);border:2px solid var(--border);border-radius:2px;padding:12px 16px 12px 40px;font-family:'DotGothic16',monospace;font-size:14px;color:var(--text);outline:none;transition:border .2s}
+.search input:focus{border-color:var(--gold)}
+.search input::placeholder{color:var(--dim)}
+.si{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--dim)}
+
+/* Stats */
+.stats{display:flex;justify-content:center;gap:40px;padding:20px;flex-wrap:wrap}
+.stat-n{font-family:'Press Start 2P',monospace;font-size:18px;color:var(--gold);text-align:center}
+.stat-l{font-size:12px;color:var(--dim);text-align:center;margin-top:2px}
+
+/* Tabs */
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.tab{font-size:12px;padding:6px 14px;background:var(--panel);border:2px solid transparent;border-radius:2px;cursor:pointer;color:var(--dim);transition:.15s}
+.tab:hover{color:var(--text);border-color:var(--border)}
+.tab.on{border-color:var(--gold);color:var(--gold)}
+
+/* Section */
+.sec{max-width:1000px;margin:0 auto;padding:32px 20px}
+.sec-t{font-size:20px;color:var(--gold);margin-bottom:4px;display:flex;align-items:center;gap:10px}
+.sec-d{font-size:13px;color:var(--dim);margin-bottom:20px}
+
+/* Skill Grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:16px}
+.card{background:var(--card);padding:18px;border-radius:2px;transition:.2s;cursor:pointer}
+.card:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,0,0,.3)}
+.card-h{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.card-icon{font-size:28px}
+.rarity{font-family:'Press Start 2P',monospace;font-size:7px;padding:3px 8px;border-radius:2px}
+.r-c{background:rgba(128,128,160,.2);color:var(--dim)}
+.r-r{background:rgba(64,160,240,.2);color:var(--blue)}
+.r-e{background:rgba(160,96,240,.2);color:var(--purple)}
+.r-l{background:rgba(240,192,64,.2);color:var(--gold)}
+.card-name{font-size:15px;color:var(--bright);margin-bottom:8px}
+.card-desc{font-size:12px;color:var(--dim);line-height:1.6;margin-bottom:10px}
+.tags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.tag{font-size:11px;padding:2px 7px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:2px;color:var(--dim)}
+.card-f{display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid rgba(255,255,255,.05)}
+.agents{display:flex;gap:4px}
+.ab{font-size:9px;padding:2px 6px;background:rgba(64,160,240,.1);border:1px solid rgba(64,160,240,.2);border-radius:2px;color:var(--blue)}
+.installs{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--green)}
+.rating{font-size:11px;color:var(--gold);margin-right:6px}
+
+/* Equip Panel */
+.equip{background:var(--panel);padding:28px;border-radius:2px;margin-top:32px}
+.eq-grid{display:grid;grid-template-columns:200px 1fr;gap:20px;margin-top:16px}
+@media(max-width:640px){.eq-grid{grid-template-columns:1fr}}
+.slots{display:flex;flex-direction:column;gap:8px}
+.slot{background:var(--bg);padding:10px 14px;border-radius:2px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:.15s;border:2px solid transparent}
+.slot:hover,.slot.on{border-color:var(--gold);background:var(--card)}
+.slot-i{font-size:20px}
+.slot-l{font-size:12px}
+.slot-n{font-size:11px;color:var(--gold);margin-top:2px}
+.presets{display:flex;flex-direction:column;gap:10px}
+.preset{background:var(--bg);padding:14px 18px;border-radius:2px;cursor:pointer;transition:.15s;border:2px solid transparent}
+.preset:hover{border-color:var(--blue)}
+.preset.on{border-color:var(--gold)}
+.preset-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.preset-n{font-size:14px;color:var(--bright)}
+.preset-b{font-family:'Press Start 2P',monospace;font-size:7px;padding:3px 8px;background:rgba(240,192,64,.15);color:var(--gold);border-radius:2px}
+.preset-s{display:flex;gap:6px;flex-wrap:wrap}
+.ps{font-size:11px;padding:3px 8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:2px;color:var(--dim)}
+
+/* CLI bar */
+.cli{display:inline-flex;align-items:center;gap:10px;background:var(--panel);padding:10px 20px;border-radius:2px;font-family:'Press Start 2P',monospace;font-size:10px;color:var(--green);cursor:pointer;transition:.2s;margin-top:16px}
+.cli:hover{background:var(--card);box-shadow:0 0 16px rgba(64,216,112,.1)}
+.cli .p{color:var(--blue)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.cur{display:inline-block;width:7px;height:12px;background:var(--green);animation:blink 1s step-end infinite;vertical-align:middle;margin-left:3px}
+
+/* Agent grid */
+.ag-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-top:16px}
+.ag-card{background:var(--card);padding:14px;border-radius:2px;text-align:center;transition:.15s}
+.ag-card:hover{transform:translateY(-2px)}
+.ag-i{font-size:24px;margin-bottom:4px}
+.ag-n{font-size:12px;color:var(--bright)}
+.ag-c{font-family:'Press Start 2P',monospace;font-size:7px;color:var(--green);margin-top:3px}
+
+/* CTA */
+.cta{text-align:center;padding:48px 20px}
+.cta-btn{display:inline-block;font-family:'DotGothic16',monospace;font-size:16px;color:var(--bg);background:var(--gold);padding:14px 36px;border:none;border-radius:2px;cursor:pointer;text-decoration:none;transition:.2s;box-shadow:4px 4px 0 rgba(0,0,0,.4)}
+.cta-btn:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 rgba(0,0,0,.4)}
+.cta-s{font-size:12px;color:var(--dim);margin-top:10px}
+
+/* Footer */
+footer{text-align:center;padding:28px 20px;border-top:1px solid rgba(255,255,255,.05);font-size:12px;color:var(--dim)}
+footer a{color:var(--blue);text-decoration:none}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">📖</div>
+  <h1>スキルの書</h1>
+  <div class="sub">THE SKILLBOOK</div>
+  <p style="font-size:14px;color:var(--dim);max-width:500px;margin:12px auto 0;line-height:1.7">AIエージェントのスキルを探す・装備する・共有する。<br>日本語で読める、RPGスタイルのスキルカタログ。</p>
+  <div class="search"><span class="si">🔍</span><input id="searchInput" type="text" placeholder="スキルを検索... 例: コードレビュー, データ分析"></div>
+</header>
+
+<div class="stats">
+  <div><div class="stat-n" id="statSkills">—</div><div class="stat-l">登録スキル</div></div>
+  <div><div class="stat-n" id="statSets">—</div><div class="stat-l">スキルセット</div></div>
+  <div><div class="stat-n">18</div><div class="stat-l">対応エージェント</div></div>
+</div>
+
+<section class="sec">
+  <div class="sec-t">⚔️ スキルカタログ</div>
+  <div class="sec-d">カテゴリ・レアリティ・対応エージェントで絞り込み</div>
+  <div class="tabs" id="catTabs"></div>
+  <div class="grid" id="skillGrid"></div>
+</section>
+
+<section class="sec">
+  <div class="equip pg">
+    <div class="sec-t">🎮 スキルセット装備</div>
+    <div class="sec-d">業務に合わせてスキルの組み合わせを切り替え</div>
+    <div class="eq-grid">
+      <div class="slots" id="equipSlots"></div>
+      <div class="presets" id="presetList"></div>
+    </div>
+    <div style="text-align:center">
+      <div class="cli pb"><span class="p">$</span><span id="cliCmd">npx skillbook equip "dev-review-set"</span><span class="cur"></span></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="sec-t">🤖 対応エージェント</div>
+  <div class="sec-d">1つのスキルを、複数のエージェントCLIで利用可能</div>
+  <div class="ag-grid">
+    <div class="ag-card pb"><div class="ag-i">🟠</div><div class="ag-n">Claude Code</div><div class="ag-c">claude skill add</div></div>
+    <div class="ag-card pb"><div class="ag-i">🟢</div><div class="ag-n">OpenAI Codex</div><div class="ag-c">codex skill add</div></div>
+    <div class="ag-card pb"><div class="ag-i">🔵</div><div class="ag-n">Cursor</div><div class="ag-c">.cursor/skills/</div></div>
+    <div class="ag-card pb"><div class="ag-i">⚪</div><div class="ag-n">GitHub Copilot</div><div class="ag-c">copilot skills</div></div>
+    <div class="ag-card pb"><div class="ag-i">🟣</div><div class="ag-n">Gemini CLI</div><div class="ag-c">gemini skill add</div></div>
+    <div class="ag-card pb"><div class="ag-i">🦆</div><div class="ag-n">Goose</div><div class="ag-c">goose skills</div></div>
+  </div>
+</section>
+
+<section class="cta">
+  <div style="font-size:40px;margin-bottom:16px">📖✨</div>
+  <a href="#" class="cta-btn pg">スキルの書を開く</a>
+  <div class="cta-s">OSSで公開中 — GitHub でスターをお願いします ⭐</div>
+  <div class="cli pb" style="font-size:9px;margin-top:14px;display:inline-flex"><span class="p">$</span><span>npx skillbook init</span><span class="cur"></span></div>
+</section>
+
+<footer>
+  <div>📖 スキルの書 / The SkillBook — v0.1.0</div>
+  <div style="margin-top:6px">Built with ❤️ by AI Tech Lead Team / <a href="#">GitHub</a> ・ <a href="#">Discord</a> ・ <a href="#">X</a></div>
+  <div style="margin-top:6px;font-family:'Press Start 2P',monospace;font-size:7px">PRESS START TO CONTRIBUTE</div>
+</footer>
+
+<script>
+// ===== Data (fallback when API is unavailable) =====
+const SKILLS_DATA = [
+  {id:"code-review",name:"コードレビューの極意",name_en:"CODE-REVIEW-MASTER",icon:"🗡️",rarity:"LEGENDARY",desc:"セキュリティ・パフォーマンス・保守性を網羅。PR単位で自動レビュー＋改善提案を生成。",tags:["TypeScript","Python","セキュリティ"],agents:["Claude","Codex","Cursor"],installs:"12.4K",rating:4.8,category:"development"},
+  {id:"design-doc-forge",name:"設計書マスター",name_en:"DESIGN-DOC-FORGE",icon:"🛡️",rarity:"EPIC",desc:"テンプレートから要件定義・基本設計・詳細設計書を自動生成。日本語フォーマット対応。",tags:["docx","テンプレート","日本語"],agents:["Claude","Copilot"],installs:"8.2K",rating:4.5,category:"document"},
+  {id:"data-arrow",name:"データ分析の矢",name_en:"DATA-ARROW",icon:"🏹",rarity:"RARE",desc:"CSV/Excelから自動でEDA＋可視化＋インサイト抽出。pandas + plotlyベース。",tags:["pandas","可視化","Excel"],agents:["Claude","Gemini","Codex"],installs:"6.1K",rating:4.3,category:"data"},
+  {id:"meeting-sorcery",name:"議事録の魔法",name_en:"MEETING-SORCERY",icon:"🔮",rarity:"EPIC",desc:"音声文字起こしから構造化議事録＋アクションアイテム＋ネクストステップを自動生成。",tags:["議事録","Whisper","Slack連携"],agents:["Claude","ChatGPT"],installs:"5.7K",rating:4.6,category:"business"},
+  {id:"git-basics",name:"Git操作の基礎",name_en:"GIT-BASICS",icon:"⚗️",rarity:"COMMON",desc:"コミットメッセージ規約・ブランチ戦略・PRテンプレートをエージェントに教え込む。",tags:["Git","CI/CD"],agents:["Claude","Cursor","Codex"],installs:"15.3K",rating:4.2,category:"development"},
+  {id:"design-army",name:"Design Army",name_en:"DESIGN-ARMY",icon:"👑",rarity:"LEGENDARY",desc:"AIっぽくないUIデザインを生成。固有名詞×テクニックで出力の平均化を打破する。",tags:["UI/UX","HTML","React"],agents:["Claude"],installs:"3.8K",rating:4.9,category:"design"},
+  {id:"test-strategy",name:"テスト戦略の盾",name_en:"TEST-STRATEGY",icon:"🛡️",rarity:"RARE",desc:"テストピラミッド設計＋テストケース自動生成＋カバレッジ分析。",tags:["Jest","pytest","E2E"],agents:["Claude","Codex"],installs:"4.2K",rating:4.4,category:"development"},
+  {id:"api-architect",name:"API設計の書",name_en:"API-ARCHITECT",icon:"📜",rarity:"EPIC",desc:"RESTful/GraphQL APIの設計ガイド。OpenAPI自動生成＋バリデーション。",tags:["REST","GraphQL","OpenAPI"],agents:["Claude","Cursor"],installs:"3.5K",rating:4.6,category:"development"},
+];
+
+const CATEGORIES = [
+  {id:"all",label:"🌟 すべて"},{id:"development",label:"💻 開発"},{id:"data",label:"📊 データ分析"},
+  {id:"document",label:"📝 ドキュメント"},{id:"design",label:"🎨 デザイン"},{id:"business",label:"💼 ビジネス"},
+];
+
+const SETS_DATA = [
+  {name:"dev-review-set",label:"⚔️ 開発レビューセット",skills:["🗡️ コードレビュー","🛡️ テスト戦略","⚗️ Git操作"],equipped:true},
+  {name:"data-analysis-set",label:"📊 データ分析セット",skills:["🏹 データ分析の矢","📈 可視化マスター","📋 レポート生成"]},
+  {name:"sales-kit",label:"💼 営業資料セット",skills:["📑 提案書フォージ","👑 Design Army","📊 競合分析"]},
+  {name:"infra-set",label:"🏗️ インフラ運用セット",skills:["🚨 インシデント対応","📋 デプロイチェック","📊 モニタリング"]},
+];
+
+const EQUIP_SLOTS = [
+  {icon:"⚔️",label:"メインスキル",name:"コードレビュー",active:true},
+  {icon:"🛡️",label:"サブスキル",name:"テスト戦略"},
+  {icon:"💍",label:"アクセサリ",name:"Git操作"},
+  {icon:"📿",label:"アクセサリ2",name:"— 空き —",empty:true},
+];
+
+// ===== Render =====
+let activeCategory = "all";
+
+function renderCategories() {
+  const el = document.getElementById("catTabs");
+  el.innerHTML = CATEGORIES.map(c =>
+    `<div class="tab ${c.id===activeCategory?"on":""}" data-cat="${c.id}">${c.label}</div>`
+  ).join("");
+  el.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+    activeCategory = t.dataset.cat;
+    renderCategories();
+    renderSkills();
+  });
+}
+
+function renderSkills(query = "") {
+  const el = document.getElementById("skillGrid");
+  const filtered = SKILLS_DATA.filter(s => {
+    if (activeCategory !== "all" && s.category !== activeCategory) return false;
+    if (query) {
+      const q = query.toLowerCase();
+      return s.name.toLowerCase().includes(q) || s.desc.toLowerCase().includes(q) ||
+        s.tags.some(t => t.toLowerCase().includes(q));
+    }
+    return true;
+  });
+  document.getElementById("statSkills").textContent = SKILLS_DATA.length.toLocaleString();
+  document.getElementById("statSets").textContent = SETS_DATA.length.toLocaleString();
+
+  const rc = {LEGENDARY:"r-l",EPIC:"r-e",RARE:"r-r",COMMON:"r-c"};
+  const bc = {LEGENDARY:"pg",EPIC:"pb",RARE:"pb",COMMON:"pb"};
+  el.innerHTML = filtered.map(s => `
+    <div class="card ${bc[s.rarity]}">
+      <div class="card-h"><span class="card-icon">${s.icon}</span><span class="rarity ${rc[s.rarity]}">★ ${s.rarity}</span></div>
+      <div class="card-name">${s.name}</div>
+      <div class="card-desc">${s.desc}</div>
+      <div class="tags">${s.tags.map(t=>`<span class="tag">${t}</span>`).join("")}</div>
+      <div class="card-f">
+        <div class="agents">${s.agents.map(a=>`<span class="ab">${a}</span>`).join("")}</div>
+        <div><span class="rating">★${s.rating}</span><span class="installs">${s.installs}</span></div>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderEquip() {
+  document.getElementById("equipSlots").innerHTML = EQUIP_SLOTS.map(s => `
+    <div class="slot ${s.active?"on":""} pb" style="${s.empty?"opacity:.4":""}">
+      <span class="slot-i">${s.icon}</span>
+      <div><div class="slot-l">${s.label}</div><div class="slot-n" ${s.empty?'style="color:var(--dim)"':''}>${s.name}</div></div>
+    </div>
+  `).join("");
+
+  const pl = document.getElementById("presetList");
+  pl.innerHTML = SETS_DATA.map(s => `
+    <div class="preset ${s.equipped?"on":""}" data-set="${s.name}">
+      <div class="preset-h"><span class="preset-n">${s.label}</span>${s.equipped?'<span class="preset-b">EQUIPPED</span>':''}</div>
+      <div class="preset-s">${s.skills.map(sk=>`<span class="ps">${sk}</span>`).join("")}</div>
+    </div>
+  `).join("");
+  pl.querySelectorAll(".preset").forEach(p => p.onclick = () => {
+    document.getElementById("cliCmd").textContent = `npx skillbook equip "${p.dataset.set}"`;
+  });
+}
+
+// Init
+renderCategories();
+renderSkills();
+renderEquip();
+document.getElementById("searchInput").addEventListener("input", e => renderSkills(e.target.value));
+</script>
+</body>
+</html>
