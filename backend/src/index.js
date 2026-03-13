@@ -196,6 +196,78 @@ app.post("/api/track/install", async (req, res) => {
   }
 });
 
+// ===== Users API =====
+
+// Get or create user profile
+app.get("/api/users/:username", async (req, res) => {
+  try {
+    const doc = await db.collection("users").doc(req.params.username).get();
+    if (!doc.exists) return res.status(404).json({ error: "User not found" });
+    res.json({ id: doc.id, ...doc.data() });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post("/api/users", async (req, res) => {
+  try {
+    const { username, displayName, bio, favoriteAgent } = req.body;
+    if (!username || username.length < 2 || username.length > 20) {
+      return res.status(400).json({ error: "username must be 2-20 characters" });
+    }
+    if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+      return res.status(400).json({ error: "username must be alphanumeric with _ or -" });
+    }
+
+    const existing = await db.collection("users").doc(username).get();
+    if (existing.exists) {
+      // Update existing
+      await db.collection("users").doc(username).update({
+        displayName: displayName || existing.data().displayName,
+        bio: bio !== undefined ? bio : existing.data().bio,
+        favoriteAgent: favoriteAgent || existing.data().favoriteAgent,
+        updatedAt: Firestore.Timestamp.now(),
+      });
+    } else {
+      // Create new
+      await db.collection("users").doc(username).set({
+        username, displayName: displayName || username,
+        bio: bio || "", favoriteAgent: favoriteAgent || "claude-code",
+        skillsPublished: 0, setsPublished: 0, reviewsWritten: 0,
+        createdAt: Firestore.Timestamp.now(), updatedAt: Firestore.Timestamp.now(),
+      });
+    }
+    const doc = await db.collection("users").doc(username).get();
+    res.json({ ok: true, user: { id: doc.id, ...doc.data() } });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Get user's sets
+app.get("/api/users/:username/sets", async (req, res) => {
+  try {
+    const snapshot = await db.collection("skillsets")
+      .where("author", "==", req.params.username).limit(50).get();
+    const sets = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    res.json({ sets });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Get user's reviews
+app.get("/api/users/:username/reviews", async (req, res) => {
+  try {
+    const snapshot = await db.collection("reviews")
+      .where("author", "==", req.params.username).limit(50).get();
+    const reviews = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    res.json({ reviews });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ===== Categories =====
 app.get("/api/categories", async (req, res) => {
   res.json({

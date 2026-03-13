@@ -162,12 +162,101 @@ footer a{color:var(--blue);text-decoration:none}
 .set-btn-copy{color:var(--green);border-color:var(--green)}
 .set-btn-copy:hover{background:rgba(64,216,112,.12)}
 
+/* User bar */
+.user-bar{position:fixed;top:0;right:0;left:0;z-index:5000;background:rgba(10,10,26,.95);border-bottom:1px solid var(--border);padding:8px 20px;display:flex;justify-content:flex-end;align-items:center;gap:12px;backdrop-filter:blur(8px)}
+.user-btn{font-size:12px;padding:5px 14px;background:var(--card);border:2px solid var(--border);border-radius:2px;color:var(--text);cursor:pointer;transition:.15s;font-family:'DotGothic16',monospace}
+.user-btn:hover{border-color:var(--gold);color:var(--gold)}
+.user-btn.gold{border-color:var(--gold);color:var(--gold)}
+.user-name{font-size:12px;color:var(--gold)}
+body{padding-top:42px}
+
+/* Nav tabs */
+.nav-tabs{display:flex;justify-content:center;gap:6px;padding:0 20px;margin-bottom:0;flex-wrap:wrap}
+.nav-tab{font-size:13px;padding:8px 18px;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--dim);cursor:pointer;transition:.15s;font-family:'DotGothic16',monospace}
+.nav-tab:hover{color:var(--text)}
+.nav-tab.on{color:var(--gold);border-bottom-color:var(--gold)}
+.page{display:none}
+.page.active{display:block}
+
+/* Tips */
+.tip-card{background:var(--card);padding:18px 20px;border-radius:2px;margin-bottom:12px;border-left:3px solid var(--gold)}
+.tip-num{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--gold);margin-bottom:6px}
+.tip-title{font-size:14px;color:var(--bright);margin-bottom:6px}
+.tip-text{font-size:12px;color:var(--dim);line-height:1.7}
+.tip-cmd{display:inline-block;background:var(--bg);padding:3px 10px;border-radius:2px;font-family:'Press Start 2P',monospace;font-size:8px;color:var(--green);margin-top:4px}
+
+/* Create set form */
+.form-group{margin-bottom:14px}
+.form-label{font-size:12px;color:var(--gold);margin-bottom:4px;display:block}
+.form-input{width:100%;background:var(--bg);border:2px solid var(--border);border-radius:2px;padding:10px 14px;font-family:'DotGothic16',monospace;font-size:13px;color:var(--text);outline:none;transition:border .2s}
+.form-input:focus{border-color:var(--gold)}
+.form-input::placeholder{color:var(--dim)}
+.skill-picker{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.skill-pick{font-size:11px;padding:5px 10px;background:var(--bg);border:2px solid var(--border);border-radius:2px;color:var(--dim);cursor:pointer;transition:.15s}
+.skill-pick:hover{border-color:var(--blue);color:var(--text)}
+.skill-pick.selected{border-color:var(--gold);color:var(--gold);background:rgba(240,192,64,.08)}
+
+/* My page */
+.profile-card{background:var(--panel);padding:24px;border-radius:2px;display:flex;gap:20px;align-items:center;margin-bottom:20px}
+.profile-avatar{width:64px;height:64px;background:var(--card);border:3px solid var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px}
+.profile-info{flex:1}
+.profile-name{font-size:18px;color:var(--bright);margin-bottom:2px}
+.profile-meta{font-size:11px;color:var(--dim)}
+.profile-stats{display:flex;gap:20px;margin-top:8px}
+.profile-stat{text-align:center}
+.profile-stat-n{font-family:'Press Start 2P',monospace;font-size:12px;color:var(--gold)}
+.profile-stat-l{font-size:10px;color:var(--dim);margin-top:2px}
+
+/* Sponsor */
+.sponsor-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:16px}
+.sponsor-card{background:var(--card);padding:20px;border-radius:2px;text-align:center;transition:.2s;cursor:pointer;border:2px solid var(--border)}
+.sponsor-card:hover{border-color:var(--gold);transform:translateY(-2px)}
+.sponsor-icon{font-size:36px;margin-bottom:8px}
+.sponsor-label{font-size:14px;color:var(--bright);margin-bottom:4px}
+.sponsor-price{font-family:'Press Start 2P',monospace;font-size:10px;color:var(--gold)}
+
 /* Toast */
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--gold);color:var(--bg);padding:10px 24px;border-radius:4px;font-size:13px;z-index:20000;transition:.3s;opacity:0;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,.4)}
 .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
 </style>
 </head>
 <body>
+
+<!-- User Bar -->
+<div class="user-bar">
+  <span id="userDisplay" style="display:none"><span class="user-name" id="userName"></span></span>
+  <button class="user-btn" id="myPageBtn" style="display:none" onclick="switchPage('mypage')">マイページ</button>
+  <button class="user-btn gold" id="loginBtn" onclick="showSetupModal()">冒険者登録</button>
+</div>
+
+<!-- User Setup Modal -->
+<div class="modal-bg" id="setupBg">
+  <div class="modal" style="max-width:400px">
+    <button class="modal-close" onclick="document.getElementById('setupBg').classList.remove('show');document.body.style.overflow=''">&times;</button>
+    <div style="padding:28px">
+      <div style="text-align:center;font-size:36px;margin-bottom:8px">📖</div>
+      <div style="text-align:center;font-size:18px;color:var(--gold);margin-bottom:4px">冒険者登録</div>
+      <div style="text-align:center;font-size:12px;color:var(--dim);margin-bottom:20px">ユーザー名を決めて、スキルの書の冒険を始めよう</div>
+      <div class="form-group">
+        <label class="form-label">ユーザー名（英数字, 2-20文字）</label>
+        <input class="form-input" id="setupUsername" placeholder="例: skill-master-42" maxlength="20">
+      </div>
+      <div class="form-group">
+        <label class="form-label">表示名（任意）</label>
+        <input class="form-input" id="setupDisplay" placeholder="例: スキルマスター">
+      </div>
+      <div class="form-group">
+        <label class="form-label">メインエージェント</label>
+        <select class="form-input" id="setupAgent">
+          <option value="claude-code">Claude Code</option><option value="codex">Codex</option>
+          <option value="cursor">Cursor</option><option value="copilot">Copilot</option>
+          <option value="gemini">Gemini</option><option value="goose">Goose</option>
+        </select>
+      </div>
+      <button class="submit-btn" style="width:100%;margin-top:4px" onclick="registerUser()">冒険を始める</button>
+    </div>
+  </div>
+</div>
 
 <header>
   <div class="logo">📖</div>
@@ -182,6 +271,18 @@ footer a{color:var(--blue);text-decoration:none}
   <div><div class="stat-n" id="statSets">—</div><div class="stat-l">スキルセット</div></div>
   <div><div class="stat-n">18</div><div class="stat-l">対応エージェント</div></div>
 </div>
+
+<!-- Navigation -->
+<div class="nav-tabs">
+  <button class="nav-tab on" data-page="catalog" onclick="switchPage('catalog')">⚔️ カタログ</button>
+  <button class="nav-tab" data-page="tips" onclick="switchPage('tips')">📚 はじめかた</button>
+  <button class="nav-tab" data-page="create" onclick="switchPage('create')">✏️ セット作成</button>
+  <button class="nav-tab" data-page="mypage" onclick="switchPage('mypage')">👤 マイページ</button>
+  <button class="nav-tab" data-page="sponsor" onclick="switchPage('sponsor')">☕ スポンサー</button>
+</div>
+
+<!-- PAGE: Catalog -->
+<div class="page active" id="page-catalog">
 
 <section class="sec">
   <div class="sec-t">⚔️ スキルカタログ</div>
@@ -214,6 +315,140 @@ footer a{color:var(--blue);text-decoration:none}
     <div class="ag-card pb"><div class="ag-i">🦆</div><div class="ag-n">Goose</div><div class="ag-c">goose skills</div></div>
   </div>
 </section>
+
+</div><!-- end page-catalog -->
+
+<!-- PAGE: Tips -->
+<div class="page" id="page-tips">
+<section class="sec">
+  <div class="sec-t">📚 はじめかた — Getting Started</div>
+  <div class="sec-d">スキルの書を使い始めるための5ステップ</div>
+
+  <div class="tip-card pg">
+    <div class="tip-num">STEP 1</div>
+    <div class="tip-title">CLIをインストール</div>
+    <div class="tip-text">npxで即座に使えます。インストール不要、Node.js 18+があればOK。</div>
+    <div class="tip-cmd">npx skillbook init</div>
+  </div>
+  <div class="tip-card pb">
+    <div class="tip-num">STEP 2</div>
+    <div class="tip-title">エージェントを選ぶ</div>
+    <div class="tip-text">Claude Code, Cursor, Codex, Copilotなど、メインで使うエージェントを設定します。スキルファイルの配置先が自動で決まります。</div>
+    <div class="tip-cmd">npx skillbook agent claude-code</div>
+  </div>
+  <div class="tip-card pb">
+    <div class="tip-num">STEP 3</div>
+    <div class="tip-title">カタログからスキルを探す</div>
+    <div class="tip-text">「⚔️ カタログ」タブでスキルを検索。カードをクリックすると詳細＋インストールコマンドが表示されます。ワンクリックでコピー！</div>
+  </div>
+  <div class="tip-card pb">
+    <div class="tip-num">STEP 4</div>
+    <div class="tip-title">スキルセットを装備する</div>
+    <div class="tip-text">複数スキルをまとめた「セット」をワンコマンドで装備。業務に合わせて切り替えられます。コマンドをターミナルで実行するとエージェントのskills/フォルダにシンボリックリンクが配置されます。</div>
+    <div class="tip-cmd">npx skillbook equip "dev-review-set"</div>
+  </div>
+  <div class="tip-card pb">
+    <div class="tip-num">STEP 5</div>
+    <div class="tip-title">自分のセットを作って共有する</div>
+    <div class="tip-text">「✏️ セット作成」タブでオリジナルのスキルセットを登録。npm publishでコミュニティに共有もできます。</div>
+    <div class="tip-cmd">npx skillbook publish</div>
+  </div>
+
+  <div style="margin-top:24px;padding:20px;background:var(--card);border-radius:2px;border-left:3px solid var(--blue)">
+    <div style="font-size:14px;color:var(--bright);margin-bottom:8px">💡 スキルとは？</div>
+    <div style="font-size:12px;color:var(--dim);line-height:1.8">「スキル」はAIエージェントに特定の能力を教えるSKILL.mdファイルです。例えば「コードレビューの極意」スキルを装備すると、エージェントがセキュリティ・パフォーマンス・保守性を自動でチェックしてくれます。RPGの装備と同じで、状況に合わせて付け替えできます。</div>
+  </div>
+</section>
+</div>
+
+<!-- PAGE: Create Set -->
+<div class="page" id="page-create">
+<section class="sec">
+  <div class="sec-t">✏️ スキルセット作成</div>
+  <div class="sec-d">カタログのスキルを組み合わせてオリジナルセットを作ろう</div>
+
+  <div style="background:var(--panel);padding:24px;border-radius:2px" class="pg">
+    <div class="form-group">
+      <label class="form-label">セット名（英数字、ハイフン可）</label>
+      <input class="form-input" id="createName" placeholder="例: my-frontend-kit">
+    </div>
+    <div class="form-group">
+      <label class="form-label">説明</label>
+      <input class="form-input" id="createDesc" placeholder="例: フロントエンド開発に必要なスキルを集めたセット">
+    </div>
+    <div class="form-group">
+      <label class="form-label">アイコン</label>
+      <input class="form-input" id="createIcon" placeholder="例: ⚔️" maxlength="4" style="max-width:100px">
+    </div>
+    <div class="form-group">
+      <label class="form-label">スキルを選択（クリックで追加/削除）</label>
+      <div class="skill-picker" id="skillPicker"></div>
+    </div>
+    <div id="selectedSkillsInfo" style="font-size:11px;color:var(--dim);margin-bottom:12px">選択中: 0個</div>
+    <button class="submit-btn" id="createSetBtn" onclick="createNewSet()">セットを登録する</button>
+    <div style="font-size:11px;color:var(--dim);margin-top:10px">※ 冒険者登録が必要です。登録後、あなたの名前でセットが公開されます。</div>
+  </div>
+</section>
+</div>
+
+<!-- PAGE: My Page -->
+<div class="page" id="page-mypage">
+<section class="sec">
+  <div id="mypageContent">
+    <div style="text-align:center;padding:40px">
+      <div style="font-size:48px;margin-bottom:12px">📖</div>
+      <div style="font-size:16px;color:var(--bright);margin-bottom:8px">冒険者登録してマイページを開こう</div>
+      <div style="font-size:12px;color:var(--dim);margin-bottom:16px">自分のスキルセット、レビュー履歴がここに表示されます</div>
+      <button class="submit-btn" onclick="showSetupModal()">冒険者登録</button>
+    </div>
+  </div>
+</section>
+</div>
+
+<!-- PAGE: Sponsor -->
+<div class="page" id="page-sponsor">
+<section class="sec">
+  <div class="sec-t">☕ スポンサー — Support The SkillBook</div>
+  <div class="sec-d">スキルの書はOSSプロジェクトです。開発を応援してくれる方を募集しています！</div>
+
+  <div class="sponsor-grid">
+    <div class="sponsor-card pb" onclick="openSponsor('coffee')">
+      <div class="sponsor-icon">☕</div>
+      <div class="sponsor-label">コーヒーを奢る</div>
+      <div class="sponsor-price">¥500</div>
+    </div>
+    <div class="sponsor-card pb" onclick="openSponsor('lunch')">
+      <div class="sponsor-icon">🍱</div>
+      <div class="sponsor-label">ランチを奢る</div>
+      <div class="sponsor-price">¥1,500</div>
+    </div>
+    <div class="sponsor-card pg" onclick="openSponsor('dinner')">
+      <div class="sponsor-icon">🍣</div>
+      <div class="sponsor-label">ディナーを奢る</div>
+      <div class="sponsor-price">¥5,000</div>
+    </div>
+    <div class="sponsor-card pg" onclick="openSponsor('patron')">
+      <div class="sponsor-icon">👑</div>
+      <div class="sponsor-label">パトロンになる</div>
+      <div class="sponsor-price">¥10,000/月</div>
+    </div>
+  </div>
+
+  <div style="margin-top:24px;padding:20px;background:var(--card);border-radius:2px;text-align:center">
+    <div style="font-size:14px;color:var(--bright);margin-bottom:8px">スポンサー特典</div>
+    <div style="font-size:12px;color:var(--dim);line-height:1.8">
+      ☕ コーヒー: READMEにお名前掲載<br>
+      🍱 ランチ: 上記＋スキルにスポンサーバッジ<br>
+      🍣 ディナー: 上記＋新機能の優先リクエスト権<br>
+      👑 パトロン: 上記＋月次開発レポート＋Discord VIPチャンネル
+    </div>
+  </div>
+
+  <div style="text-align:center;margin-top:20px;font-size:12px;color:var(--dim)">
+    ※ Stripe決済リンクは準備中です。<a href="https://github.com/hatyibei/skillbook" style="color:var(--blue)">GitHubスポンサー</a>からも応援できます。
+  </div>
+</section>
+</div>
 
 <section class="cta">
   <div style="font-size:40px;margin-bottom:16px">📖✨</div>
@@ -669,7 +904,215 @@ function renderEquip() {
   };
 }
 
+// ===== Page Navigation =====
+function switchPage(page) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("on"));
+  const pageEl = document.getElementById("page-" + page);
+  if (pageEl) pageEl.classList.add("active");
+  const tabEl = document.querySelector('.nav-tab[data-page="'+page+'"]');
+  if (tabEl) tabEl.classList.add("on");
+  if (page === "create") renderSkillPicker();
+  if (page === "mypage") renderMyPage();
+}
+
+// ===== User Management =====
+let currentUser = null;
+
+function loadUser() {
+  const saved = window.localStorage ? localStorage.getItem("skillbook_user") : null;
+  if (saved) {
+    try { currentUser = JSON.parse(saved); updateUserUI(); } catch(e) {}
+  }
+}
+
+function updateUserUI() {
+  if (currentUser) {
+    document.getElementById("userDisplay").style.display = "";
+    document.getElementById("userName").textContent = currentUser.displayName || currentUser.username;
+    document.getElementById("myPageBtn").style.display = "";
+    document.getElementById("loginBtn").textContent = "設定";
+  }
+}
+
+function showSetupModal() {
+  if (currentUser) {
+    document.getElementById("setupUsername").value = currentUser.username;
+    document.getElementById("setupDisplay").value = currentUser.displayName || "";
+    document.getElementById("setupAgent").value = currentUser.favoriteAgent || "claude-code";
+  }
+  document.getElementById("setupBg").classList.add("show");
+  document.body.style.overflow = "hidden";
+}
+
+async function registerUser() {
+  const username = document.getElementById("setupUsername").value.trim();
+  const displayName = document.getElementById("setupDisplay").value.trim() || username;
+  const favoriteAgent = document.getElementById("setupAgent").value;
+
+  if (!username || username.length < 2 || !/^[a-zA-Z0-9_-]+$/.test(username)) {
+    showToast("ユーザー名は英数字2文字以上で入力してね");
+    return;
+  }
+
+  try {
+    const res = await fetch(API_BASE + "/api/users", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ username, displayName, favoriteAgent }),
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
+    const data = await res.json();
+    currentUser = data.user || { username, displayName, favoriteAgent };
+    if (window.localStorage) localStorage.setItem("skillbook_user", JSON.stringify(currentUser));
+    updateUserUI();
+    document.getElementById("setupBg").classList.remove("show");
+    document.body.style.overflow = "";
+    showToast("冒険者登録完了！ ようこそ、" + displayName + "！");
+  } catch (e) {
+    showToast("登録エラー: " + e.message);
+  }
+}
+
+// ===== Create Set =====
+let selectedSkills = new Set();
+
+function renderSkillPicker() {
+  const el = document.getElementById("skillPicker");
+  el.innerHTML = SKILLS_DATA.map(s =>
+    '<span class="skill-pick '+(selectedSkills.has(s.id)?'selected':'')+'" data-id="'+s.id+'">'+s.icon+' '+s.name+'</span>'
+  ).join("");
+  el.querySelectorAll(".skill-pick").forEach(sp => {
+    sp.onclick = () => {
+      const id = sp.dataset.id;
+      if (selectedSkills.has(id)) selectedSkills.delete(id); else selectedSkills.add(id);
+      sp.classList.toggle("selected");
+      document.getElementById("selectedSkillsInfo").textContent = "選択中: " + selectedSkills.size + "個";
+    };
+  });
+}
+
+async function createNewSet() {
+  if (!currentUser) { showSetupModal(); return; }
+  const name = document.getElementById("createName").value.trim();
+  const desc = document.getElementById("createDesc").value.trim();
+  const icon = document.getElementById("createIcon").value.trim() || "📦";
+
+  if (!name || !/^[a-zA-Z0-9_-]+$/.test(name)) {
+    showToast("セット名は英数字・ハイフンで入力してね");
+    return;
+  }
+  if (selectedSkills.size === 0) {
+    showToast("スキルを1つ以上選択してね");
+    return;
+  }
+
+  const skills = Array.from(selectedSkills).map(id => {
+    const s = SKILLS_DATA.find(sk => sk.id === id);
+    return s ? (s.icon + " " + s.name) : id;
+  });
+
+  try {
+    const res = await fetch(API_BASE + "/api/sets", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ name, description: desc, skills, icon, agents: ["claude-code"], author: currentUser.username }),
+    });
+    if (!res.ok) throw new Error("登録失敗");
+    showToast("スキルセット「" + name + "」を登録しました！");
+    document.getElementById("createName").value = "";
+    document.getElementById("createDesc").value = "";
+    document.getElementById("createIcon").value = "";
+    selectedSkills.clear();
+    renderSkillPicker();
+    loadFromApi();
+  } catch (e) {
+    showToast("セット登録に失敗しました...");
+  }
+}
+
+// ===== My Page =====
+async function renderMyPage() {
+  const el = document.getElementById("mypageContent");
+  if (!currentUser) {
+    el.innerHTML = '<div style="text-align:center;padding:40px"><div style="font-size:48px;margin-bottom:12px">📖</div><div style="font-size:16px;color:var(--bright);margin-bottom:8px">冒険者登録してマイページを開こう</div><div style="font-size:12px;color:var(--dim);margin-bottom:16px">自分のスキルセット、レビュー履歴がここに表示されます</div><button class="submit-btn" onclick="showSetupModal()">冒険者登録</button></div>';
+    return;
+  }
+
+  el.innerHTML = '<div class="profile-card pg"><div class="profile-avatar">⚔️</div><div class="profile-info"><div class="profile-name">'+(currentUser.displayName||currentUser.username)+'</div><div class="profile-meta">@'+currentUser.username+' / '+currentUser.favoriteAgent+'</div><div class="profile-stats"><div class="profile-stat"><div class="profile-stat-n" id="mySetCount">-</div><div class="profile-stat-l">セット</div></div><div class="profile-stat"><div class="profile-stat-n" id="myReviewCount">-</div><div class="profile-stat-l">レビュー</div></div></div></div></div><div class="sec-t" style="margin-bottom:12px">📦 マイスキルセット</div><div id="mySets"><div class="no-reviews">読み込み中...</div></div><div class="sec-t" style="margin-top:24px;margin-bottom:12px">📝 マイレビュー</div><div id="myReviews"><div class="no-reviews">読み込み中...</div></div>';
+
+  // Load user data
+  try {
+    const [setsRes, reviewsRes] = await Promise.all([
+      fetch(API_BASE + "/api/users/" + currentUser.username + "/sets"),
+      fetch(API_BASE + "/api/users/" + currentUser.username + "/reviews"),
+    ]);
+    const setsData = await setsRes.json();
+    const reviewsData = await reviewsRes.json();
+    const sets = setsData.sets || [];
+    const reviews = reviewsData.reviews || [];
+
+    document.getElementById("mySetCount").textContent = sets.length;
+    document.getElementById("myReviewCount").textContent = reviews.length;
+
+    document.getElementById("mySets").innerHTML = sets.length === 0
+      ? '<div class="no-reviews">まだセットがありません — 「✏️ セット作成」で作ろう！</div>'
+      : sets.map(s => '<div class="set-card pb" style="margin-bottom:8px"><div class="set-header"><span class="set-name">'+(s.icon||"📦")+' '+s.name+'</span><span class="set-count">'+(s.skills||[]).length+' SKILLS</span></div></div>').join("");
+
+    document.getElementById("myReviews").innerHTML = reviews.length === 0
+      ? '<div class="no-reviews">まだレビューがありません — スキルの詳細からレビューを書こう！</div>'
+      : reviews.map(r => '<div class="review-item"><div class="review-head"><span class="review-author">'+r.targetId+'</span><span class="review-stars">'+"⭐".repeat(r.rating||0)+'</span></div>'+(r.comment?'<div class="review-text">'+r.comment+'</div>':'')+'</div>').join("");
+  } catch (e) {
+    document.getElementById("mySets").innerHTML = '<div class="no-reviews">読み込みエラー</div>';
+  }
+}
+
+// ===== Sponsor =====
+function openSponsor(tier) {
+  // Stripe Payment Links — replace with actual links when ready
+  const links = {
+    coffee: "https://github.com/hatyibei/skillbook",
+    lunch: "https://github.com/hatyibei/skillbook",
+    dinner: "https://github.com/hatyibei/skillbook",
+    patron: "https://github.com/hatyibei/skillbook",
+  };
+  window.open(links[tier] || links.coffee, "_blank");
+}
+
+// ===== Review with user =====
+// Override review submit to use current user
+const origSubmitReview = document.getElementById("submitReview").onclick;
+document.getElementById("submitReview").onclick = async () => {
+  if (!currentSkill || reviewRating === 0) return;
+  const btn = document.getElementById("submitReview");
+  btn.disabled = true;
+  btn.textContent = "送信中...";
+  try {
+    const res = await fetch(API_BASE + "/api/reviews", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({
+        targetId: currentSkill.id,
+        targetType: "skill",
+        author: currentUser ? currentUser.username : "anonymous",
+        rating: reviewRating,
+        comment: document.getElementById("reviewText").value.trim(),
+        agentUsed: document.getElementById("reviewAgent").value,
+      }),
+    });
+    if (!res.ok) throw new Error("送信エラー");
+    showToast("レビューを投稿しました！");
+    document.getElementById("reviewText").value = "";
+    reviewRating = 0;
+    renderStars(0);
+    loadReviews(currentSkill.id);
+    loadFromApi();
+  } catch (e) {
+    showToast("レビュー投稿に失敗しました...");
+  }
+  btn.disabled = true;
+  btn.textContent = "レビュー投稿";
+};
+
 // Init — load from API, fallback to hardcoded
+loadUser();
 loadFromApi();
 document.getElementById("searchInput").addEventListener("input", e => renderSkills(e.target.value));
 </script>
