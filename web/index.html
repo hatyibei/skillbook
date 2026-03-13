@@ -176,7 +176,7 @@ footer a{color:var(--blue);text-decoration:none}
 
 <script>
 // ===== Data (fallback when API is unavailable) =====
-const SKILLS_DATA = [
+let SKILLS_DATA = [
   {id:"code-review",name:"コードレビューの極意",name_en:"CODE-REVIEW-MASTER",icon:"🗡️",rarity:"LEGENDARY",desc:"セキュリティ・パフォーマンス・保守性を網羅。PR単位で自動レビュー＋改善提案を生成。",tags:["TypeScript","Python","セキュリティ"],agents:["Claude","Codex","Cursor"],installs:"12.4K",rating:4.8,category:"development"},
   {id:"design-doc-forge",name:"設計書マスター",name_en:"DESIGN-DOC-FORGE",icon:"🛡️",rarity:"EPIC",desc:"テンプレートから要件定義・基本設計・詳細設計書を自動生成。日本語フォーマット対応。",tags:["docx","テンプレート","日本語"],agents:["Claude","Copilot"],installs:"8.2K",rating:4.5,category:"document"},
   {id:"data-arrow",name:"データ分析の矢",name_en:"DATA-ARROW",icon:"🏹",rarity:"RARE",desc:"CSV/Excelから自動でEDA＋可視化＋インサイト抽出。pandas + plotlyベース。",tags:["pandas","可視化","Excel"],agents:["Claude","Gemini","Codex"],installs:"6.1K",rating:4.3,category:"data"},
@@ -192,7 +192,7 @@ const CATEGORIES = [
   {id:"document",label:"📝 ドキュメント"},{id:"design",label:"🎨 デザイン"},{id:"business",label:"💼 ビジネス"},
 ];
 
-const SETS_DATA = [
+let SETS_DATA = [
   {name:"dev-review-set",label:"⚔️ 開発レビューセット",skills:["🗡️ コードレビュー","🛡️ テスト戦略","⚗️ Git操作"],equipped:true},
   {name:"data-analysis-set",label:"📊 データ分析セット",skills:["🏹 データ分析の矢","📈 可視化マスター","📋 レポート生成"]},
   {name:"sales-kit",label:"💼 営業資料セット",skills:["📑 提案書フォージ","👑 Design Army","📊 競合分析"]},
@@ -205,6 +205,64 @@ const EQUIP_SLOTS = [
   {icon:"💍",label:"アクセサリ",name:"Git操作"},
   {icon:"📿",label:"アクセサリ2",name:"— 空き —",empty:true},
 ];
+
+// ===== API Config =====
+const API_BASE = "https://skillbook-api-vvfvl5bkfa-an.a.run.app";
+
+// Rarity map from Firestore format
+const RARITY_MAP = { common: "COMMON", rare: "RARE", epic: "EPIC", legendary: "LEGENDARY" };
+
+function mapApiSkill(s) {
+  return {
+    id: s.id || s.name_en?.toLowerCase(),
+    name: s.name,
+    name_en: (s.name_en || s.id || "").toUpperCase(),
+    icon: s.icon || "⚔️",
+    rarity: RARITY_MAP[s.rarity] || s.rarity || "COMMON",
+    desc: s.description || s.desc || "",
+    tags: s.tags || [],
+    agents: s.agents || [],
+    installs: s.installs != null ? (s.installs >= 1000 ? (s.installs/1000).toFixed(1)+"K" : String(s.installs)) : "0",
+    rating: s.avgRating || s.rating || 0,
+    category: s.category || "development",
+  };
+}
+
+function mapApiSet(s) {
+  return {
+    name: s.name || s.id,
+    label: `${s.icon||"📦"} ${s.name}`,
+    skills: (s.skills || []).map(sk => typeof sk === "string" ? sk : `${sk.icon||"⚔️"} ${sk.name||sk}`),
+    equipped: false,
+  };
+}
+
+async function loadFromApi() {
+  try {
+    const [skillsRes, setsRes] = await Promise.all([
+      fetch(`${API_BASE}/api/skills`),
+      fetch(`${API_BASE}/api/sets`),
+    ]);
+    if (!skillsRes.ok || !setsRes.ok) throw new Error("API error");
+    const skillsJson = await skillsRes.json();
+    const setsJson = await setsRes.json();
+    const skills = skillsJson.skills || skillsJson;
+    const sets = setsJson.sets || setsJson;
+    if (skills.length > 0) SKILLS_DATA = skills.map(mapApiSkill);
+    if (sets.length > 0) SETS_DATA = sets.map(mapApiSet);
+    if (SETS_DATA.length > 0) SETS_DATA[0].equipped = true;
+    console.log(`✅ API loaded: ${SKILLS_DATA.length} skills, ${SETS_DATA.length} sets`);
+  } catch (e) {
+    console.warn("⚠️ API unavailable, using fallback data:", e.message);
+  }
+  renderAll();
+}
+
+function renderAll() {
+  renderCategories();
+  renderSkills();
+  renderEquip();
+}
 
 // ===== Render =====
 let activeCategory = "all";
@@ -271,10 +329,8 @@ function renderEquip() {
   });
 }
 
-// Init
-renderCategories();
-renderSkills();
-renderEquip();
+// Init — load from API, fallback to hardcoded
+loadFromApi();
 document.getElementById("searchInput").addEventListener("input", e => renderSkills(e.target.value));
 </script>
 </body>
