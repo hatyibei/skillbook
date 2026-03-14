@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/hatyibei/skillbook/main/docs/logo.png" alt="スキルの書" width="120">
+  <img src="https://raw.githubusercontent.com/hatyibei/skillbook/main/docs/logo.svg" alt="スキルの書" width="120">
 </p>
 
 <h1 align="center">📖 スキルの書 — The SkillBook</h1>
