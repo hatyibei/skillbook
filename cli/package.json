@@ -1,21 +1,31 @@
 {
   "name": "skillbook",
-  "version": "0.1.0",
-  "description": "📖 スキルの書 — RPG-style AI agent skill set manager",
+  "version": "0.2.0",
+  "description": "📖 スキルの書 — RPG-style AI agent skill set manager. Search, equip, and share SKILL.md files for Claude Code, Cursor, Copilot, and more.",
   "bin": {
     "skillbook": "./bin/skillbook.js"
   },
-  "keywords": [
-    "ai", "agent", "skills", "claude", "codex", "cursor",
-    "copilot", "gemini", "skillbook", "rpg", "skillset"
+  "files": [
+    "bin/",
+    "lib/",
+    "README.md"
   ],
-  "author": "AI Tech Lead Team",
+  "keywords": [
+    "ai", "agent", "skills", "claude", "claude-code", "codex", "cursor",
+    "copilot", "gemini", "windsurf", "skillbook", "rpg", "skillset",
+    "skill-management", "mcp", "prompt-engineering"
+  ],
+  "author": "hatyibei",
   "license": "MIT",
   "engines": {
     "node": ">=18"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/hathibei/skillbook"
+    "url": "https://github.com/hatyibei/skillbook"
+  },
+  "homepage": "https://skillbook-web-140498091344.asia-northeast1.run.app",
+  "bugs": {
+    "url": "https://github.com/hatyibei/skillbook/issues"
   }
 }

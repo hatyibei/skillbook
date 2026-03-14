@@ -1,0 +1,112 @@
+name: CI / CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ===== CLI Tests =====
+  cli-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: CLI syntax check
+        working-directory: cli
+        run: |
+          node -c bin/skillbook.js
+          node -c lib/commands.js
+          node -c lib/constants.js
+          node -c lib/store.js
+          node -c lib/ui.js
+      - name: CLI smoke test
+        working-directory: cli
+        run: |
+          node bin/skillbook.js help
+          node bin/skillbook.js status || true
+
+  # ===== Backend Tests =====
+  backend-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Backend syntax check
+        working-directory: backend
+        run: node -c src/index.js
+
+  # ===== Web Validation =====
+  web-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Validate HTML + JS syntax
+        run: |
+          node -e "
+            const fs = require('fs');
+            const html = fs.readFileSync('web/index.html', 'utf-8');
+            const m = html.match(/<script>([\s\S]*?)<\/script>/);
+            if (!m) { console.error('No script tag found'); process.exit(1); }
+            try { new Function(m[1]); console.log('✅ Web JS syntax OK'); }
+            catch(e) { console.error('❌ JS error:', e.message); process.exit(1); }
+            console.log('Lines:', html.split('\n').length);
+          "
+
+  # ===== Deploy (only on push to main) =====
+  deploy-api:
+    needs: [cli-test, backend-test, web-validate]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Deploy API to Cloud Run
+        run: |
+          gcloud run deploy skillbook-api \
+            --source backend/ \
+            --region asia-northeast1 \
+            --project ${{ secrets.GCP_PROJECT_ID }} \
+            --allow-unauthenticated \
+            --quiet
+
+  deploy-web:
+    needs: [cli-test, backend-test, web-validate]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Deploy Web to Cloud Run
+        run: |
+          gcloud run deploy skillbook-web \
+            --source web/ \
+            --region asia-northeast1 \
+            --project ${{ secrets.GCP_PROJECT_ID }} \
+            --allow-unauthenticated \
+            --quiet
