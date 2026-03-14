@@ -636,9 +636,20 @@ body{padding-top:42px}
     </div>
 
     <div class="form-group">
-      <label class="form-label">SKILL.md 内容（任意 — スキルの指示本文）</label>
-      <textarea class="form-input" id="skillContent" placeholder="# Code Review Master&#10;&#10;You are an expert code reviewer...&#10;&#10;## Instructions&#10;- Check for security issues&#10;- Review error handling" rows="5" style="resize:vertical;font-size:12px"></textarea>
-      <div style="font-size:10px;color:var(--dim);margin-top:3px">Markdownで書けます。エージェントに読み込まれる指示本文。</div>
+      <label class="form-label">公開範囲</label>
+      <select class="form-input" id="skillVisibility">
+        <option value="public">🌐 公開 — すべてのユーザーが見られます</option>
+        <option value="private">🔒 非公開 — 自分だけが見られます</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">SKILL.md 内容（必須 — スキルの指示本文）</label>
+      <div style="margin-bottom:4px">
+        <button type="button" class="submit-btn" style="font-size:11px;padding:4px 12px;background:var(--blue)" onclick="insertSkillTemplate()">📝 テンプレートを挿入</button>
+      </div>
+      <textarea class="form-input" id="skillContent" placeholder="# Code Review Master&#10;&#10;You are an expert code reviewer...&#10;&#10;## Instructions&#10;- Check for security issues&#10;- Review error handling" rows="8" style="resize:vertical;font-size:12px"></textarea>
+      <div style="font-size:10px;color:var(--dim);margin-top:3px">Markdownで書けます。エージェントに読み込まれる指示本文。<span id="skillContentCharCount" style="margin-left:8px;color:var(--blue)">0文字</span></div>
     </div>
 
     <button class="submit-btn" style="width:100%" onclick="registerSkill()">🗡️ スキルを登録する</button>
@@ -693,6 +704,13 @@ body{padding-top:42px}
     <div class="form-group">
       <label class="form-label">説明（日本語OK）</label>
       <input class="form-input" id="createDesc" placeholder="例: フロントエンド開発に必要なスキルを集めたセット">
+    </div>
+    <div class="form-group">
+      <label class="form-label">公開範囲</label>
+      <select class="form-input" id="setVisibility">
+        <option value="public">🌐 公開 — すべてのユーザーが見られます</option>
+        <option value="private">🔒 非公開 — 自分だけが見られます</option>
+      </select>
     </div>
     <div class="form-group">
       <label class="form-label">スキルを選択（クリックで追加/削除）</label>
@@ -809,7 +827,10 @@ body{padding-top:42px}
       <div class="modal-desc" id="mDescJa" style="font-size:14px;color:var(--text);line-height:1.8;margin-bottom:8px"></div>
       <div class="modal-desc" id="mDescEn" style="font-size:12px;color:var(--dim);line-height:1.6;margin-bottom:16px"></div>
       <div class="modal-section" id="mContentSection" style="display:none">
-        <div class="modal-label">📜 スキル内容（SKILL.md プレビュー）</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div class="modal-label">📋 コピー SKILL.md</div>
+          <button class="copy-btn" id="copyContentBtn" style="font-size:10px;padding:3px 8px">📋 コピー</button>
+        </div>
         <div class="skill-content" id="mContent"></div>
       </div>
       <div class="modal-section" id="mRepoSection" style="display:none">
@@ -818,6 +839,10 @@ body{padding-top:42px}
           <div class="ref-title" id="mRepoTitle"></div>
           <div class="ref-url" id="mRepoUrl"></div>
         </a>
+      </div>
+      <div class="modal-section" id="mRepoMessageSection" style="display:none">
+        <div class="modal-label">📖 SKILL.md について</div>
+        <div style="font-size:12px;color:var(--dim);background:var(--bg);padding:12px;border-radius:2px;border-left:3px solid var(--blue)">このスキルのSKILL.mdはGitHubリポジトリで閲覧できます：<br><a id="mRepoMessageLink" href="#" target="_blank" style="color:var(--blue);text-decoration:underline;font-size:11px">リポジトリを開く</a></div>
       </div>
       <div class="modal-section">
         <div class="modal-label">タグ</div>
@@ -952,6 +977,8 @@ function mapApiSet(s) {
   return {
     name: s.name || s.id,
     label: `${s.icon||"📦"} ${s.name}`,
+    description: s.description || "",
+    author: s.author || "",
     skills: (s.skills || []).map(sk => typeof sk === "string" ? sk : `${sk.icon||"⚔️"} ${sk.name||sk}`),
     equipped: false,
   };
@@ -1024,8 +1051,19 @@ function openModal(skill) {
   document.getElementById("mDescEn").textContent = skill.desc_en || "";
   // Content viewer
   const contentSec = document.getElementById("mContentSection");
-  if (skill.content) { contentSec.style.display=""; document.getElementById("mContent").textContent = skill.content; }
-  else { contentSec.style.display="none"; }
+  const repoMsgSec = document.getElementById("mRepoMessageSection");
+  if (skill.content) {
+    contentSec.style.display="";
+    repoMsgSec.style.display="none";
+    document.getElementById("mContent").textContent = skill.content;
+  } else if (skill.repo) {
+    contentSec.style.display="none";
+    repoMsgSec.style.display="";
+    document.getElementById("mRepoMessageLink").href = skill.repo;
+  } else {
+    contentSec.style.display="none";
+    repoMsgSec.style.display="none";
+  }
   // Repo link
   const repoSec = document.getElementById("mRepoSection");
   if (skill.repo) {
@@ -1067,6 +1105,19 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal
 // Install copy buttons
 document.getElementById("installBox1").onclick = () => copyCmd(document.getElementById("installCmd1").textContent, document.getElementById("copyBtn1"));
 document.getElementById("installBox2").onclick = () => copyCmd(document.getElementById("installCmd2").textContent, document.getElementById("copyBtn2"));
+
+// Content copy button
+document.getElementById("copyContentBtn").onclick = (e) => {
+  e.stopPropagation();
+  const content = document.getElementById("mContent").textContent;
+  navigator.clipboard.writeText(content).then(() => {
+    const btn = document.getElementById("copyContentBtn");
+    btn.textContent = "コピーしました！";
+    btn.classList.add("copied");
+    showToast("SKILL.mdをコピーしました！");
+    setTimeout(() => { btn.textContent = "📋 コピー"; btn.classList.remove("copied"); }, 2000);
+  });
+};
 
 // Track install on copy
 document.getElementById("installBox1").addEventListener("click", () => trackInstall());
@@ -1264,26 +1315,60 @@ function renderSetCatalog() {
 
   document.getElementById("setResultCount").textContent = sorted.length + "件";
 
-  el.innerHTML = sorted.map((s, i) => `
-    <div class="setcat-card ${s.equipped?'equipped':''}" data-idx="${i}">
-      <div class="setcat-header">
+  el.innerHTML = sorted.map((s, i) => {
+    const skillsList = s.skills || [];
+    const skillDetails = skillsList.map(sk => {
+      const skillText = typeof sk === 'string' ? sk : (sk.name || sk);
+      const skillObj = SKILLS_DATA.find(sd => sd.name === skillText.replace(/^[^a-zA-Z0-9]+ /, ''));
+      return { text: skillText, obj: skillObj };
+    });
+
+    return `
+    <div class="setcat-card ${s.equipped?'equipped':''}" data-idx="${i}" style="cursor:pointer">
+      <div class="setcat-header" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleSetDetail(${i})">
         <span class="setcat-name">${s.label || s.name}</span>
+        <span style="font-size:16px;color:var(--dim);transition:.2s" class="set-toggle-icon">▼</span>
       </div>
       <div class="setcat-meta">
-        <span class="set-count">${(s.skills||[]).length} SKILLS</span>
+        <span class="set-count">${skillsList.length} SKILLS</span>
         ${s.equipped ? '<span class="set-equip-badge">EQUIPPED</span>' : ''}
         ${s.author ? '<span style="font-size:10px;color:var(--blue)">by '+s.author+'</span>' : ''}
       </div>
       ${s.description ? '<div class="setcat-desc">'+s.description+'</div>' : ''}
-      <div class="setcat-skills">${(s.skills||[]).map(sk=>'<span class="setcat-skill">'+(typeof sk==='string'?sk:sk.name||sk)+'</span>').join("")}</div>
-      <div class="setcat-footer">
+      <div class="setcat-detail" style="display:none;padding-top:12px;border-top:1px solid rgba(255,255,255,.05)">
+        <div style="font-size:11px;color:var(--gold);margin-bottom:8px;font-weight:bold">含まれるスキル</div>
+        <div style="display:grid;gap:6px">
+          ${skillDetails.map(sd => `
+            <div style="background:var(--bg);padding:10px;border-radius:2px;border-left:3px solid var(--blue);cursor:pointer;transition:.15s" class="skill-detail-item" data-skill-id="${sd.obj?.id||''}" onclick="event.stopPropagation();${sd.obj ? "openModal(SKILLS_DATA.find(s=>s.id==='"+sd.obj.id+"'))" : ''}">
+              <div style="font-size:12px;color:var(--bright);margin-bottom:2px">${sd.text}</div>
+              ${sd.obj ? '<div style="font-size:10px;color:var(--dim)">'+sd.obj.desc.substring(0,50)+(sd.obj.desc.length>50?'...':'')+'</div>' : '<div style="font-size:10px;color:var(--dim);font-style:italic">外部スキル</div>'}
+            </div>
+          `).join("")}
+        </div>
+      </div>
+      <div class="setcat-footer" style="margin-top:12px">
         <div class="setcat-actions">
-          <button class="setcat-btn setcat-btn-equip ${s.equipped?'active':''}" data-set="${s.name}">${s.equipped?'🔴 解除':'🟢 装備する'}</button>
-          <button class="setcat-btn" data-set="${s.name}" onclick="copySetCmd('${s.name}')">📋 コマンドコピー</button>
+          <button class="setcat-btn setcat-btn-equip ${s.equipped?'active':''}" data-set="${s.name}" onclick="event.stopPropagation()">${s.equipped?'🔴 解除':'🟢 装備する'}</button>
+          <button class="setcat-btn" data-set="${s.name}" onclick="event.stopPropagation();copySetCmd('${s.name}')">📋 コマンドコピー</button>
         </div>
       </div>
     </div>
-  `).join("");
+  `}).join("");
+
+  // Toggle detail expand/collapse
+  el.querySelectorAll(".setcat-card").forEach((card, idx) => {
+    const header = card.querySelector(".setcat-header");
+    const detail = card.querySelector(".setcat-detail");
+    const toggleIcon = card.querySelector(".set-toggle-icon");
+    if (header) {
+      header.onclick = (e) => {
+        e.stopPropagation();
+        const isOpen = detail.style.display !== "none";
+        detail.style.display = isOpen ? "none" : "";
+        toggleIcon.style.transform = isOpen ? "rotate(0deg)" : "rotate(180deg)";
+      };
+    }
+  });
 
   // Equip toggle
   el.querySelectorAll(".setcat-btn-equip").forEach(btn => {
@@ -1307,6 +1392,17 @@ function renderSetCatalog() {
     const cmd = document.getElementById("cliCmd").textContent;
     navigator.clipboard.writeText(cmd).then(() => showToast("コマンドをコピーしました！"));
   };
+}
+
+function toggleSetDetail(idx) {
+  const cards = document.querySelectorAll(".setcat-card");
+  if (cards[idx]) {
+    const detail = cards[idx].querySelector(".setcat-detail");
+    const toggleIcon = cards[idx].querySelector(".set-toggle-icon");
+    const isOpen = detail.style.display !== "none";
+    detail.style.display = isOpen ? "none" : "";
+    toggleIcon.style.transform = isOpen ? "rotate(0deg)" : "rotate(180deg)";
+  }
 }
 
 function copySetCmd(name) {
@@ -1619,6 +1715,44 @@ function updateSkillPreview() {
   `;
 }
 
+// ===== SKILL.md Template =====
+function insertSkillTemplate() {
+  const template = `# [Skill Name]
+
+[Brief description of what this skill does]
+
+## Instructions
+- First instruction or principle
+- Second instruction or principle
+- Third instruction or principle
+
+## Rules
+- Important constraint or rule
+- Another constraint or rule
+- Safety consideration
+
+## Examples
+- Example use case 1
+- Example use case 2
+`;
+  const el = document.getElementById("skillContent");
+  if (el) {
+    el.value = template;
+    el.focus();
+    updateSkillCharCount();
+  }
+}
+
+// ===== Character Count =====
+document.getElementById("skillContent").addEventListener("input", updateSkillCharCount);
+
+function updateSkillCharCount() {
+  const el = document.getElementById("skillContent");
+  const count = el?.value?.length || 0;
+  const countEl = document.getElementById("skillContentCharCount");
+  if (countEl) countEl.textContent = count.toLocaleString() + "文字";
+}
+
 // ===== Skill Picker Search =====
 function filterSkillPicker() {
   const q = (document.getElementById("skillPickerSearch")?.value || "").toLowerCase();
@@ -1661,10 +1795,12 @@ async function registerSkill() {
   const tags = document.getElementById("skillTags").value.split(",").map(t => t.trim()).filter(Boolean);
   const repo = document.getElementById("skillRepo").value.trim();
   const content = document.getElementById("skillContent")?.value.trim() || "";
+  const visibility = document.getElementById("skillVisibility")?.value || "public";
 
   if (!name) { showToast("🇯🇵 スキル名を入力してね"); return; }
   if (!nameEn || !id) { showToast("🇺🇸 English Nameを入力してね（IDの自動生成に必要）"); return; }
   if (!descJa) { showToast("🇯🇵 日本語の説明を入力してね"); return; }
+  if (!content) { showToast("📝 SKILL.md 内容を入力してね（必須です）"); return; }
 
   try {
     const headers = {"Content-Type":"application/json"};
@@ -1673,7 +1809,7 @@ async function registerSkill() {
       method: "POST", headers,
       body: JSON.stringify({
         name, name_en: nameEn.toUpperCase(), icon: pickedSkillIcon,
-        description: descEn, description_ja: descJa, content,
+        description: descEn, description_ja: descJa, content, visibility,
         category, rarity, tags, repo, agents: Array.from(selectedAgents),
         author: currentUser.username,
       }),
@@ -1687,6 +1823,7 @@ async function registerSkill() {
     pickedSkillIcon = "⚔️";
     document.getElementById("skillIconBtn").textContent = "⚔️";
     document.getElementById("skillIdPreview").textContent = "—";
+    document.getElementById("skillContentCharCount").textContent = "0文字";
     updateSkillPreview();
     loadFromApi();
     switchPage("catalog");
@@ -1718,6 +1855,7 @@ async function createNewSet() {
   const name = document.getElementById("createName").value.trim();
   const desc = document.getElementById("createDesc").value.trim();
   const icon = pickedSetIcon || "📦";
+  const visibility = document.getElementById("setVisibility")?.value || "public";
 
   if (!name || !/^[a-zA-Z0-9_-]+$/.test(name)) {
     showToast("セット名は英数字・ハイフンで入力してね");
@@ -1738,7 +1876,7 @@ async function createNewSet() {
     if (authToken) headers["Authorization"] = "Bearer " + authToken;
     const res = await fetch(API_BASE + "/api/sets", {
       method: "POST", headers,
-      body: JSON.stringify({ name, description: desc, skills, icon, agents: ["claude-code"], author: currentUser.username }),
+      body: JSON.stringify({ name, description: desc, skills, icon, visibility, agents: ["claude-code"], author: currentUser.username }),
     });
     if (!res.ok) throw new Error("登録失敗");
     showToast("スキルセット「" + name + "」を登録しました！");

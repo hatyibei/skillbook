@@ -41,9 +41,14 @@ app.get("/", (req, res) => res.json({
 app.get("/api/skills", async (req, res) => {
   try {
     const { q, category, agent, rarity, limit = 50, offset = 0 } = req.query;
+    const authUser = req.headers.authorization?.replace("Bearer ", "");
+
     // Simple query — sort client-side to avoid composite index issues
     const snapshot = await db.collection("skills").limit(Number(limit)).get();
     let skills = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    // Filter out private skills unless user is the author
+    skills = skills.filter(s => s.visibility !== "private" || s.author === authUser);
 
     // Client-side filtering
     if (category) skills = skills.filter(s => s.category === category);
@@ -75,7 +80,7 @@ app.get("/api/skills/:id", async (req, res) => {
 // Register/update skill (from CLI publish)
 app.post("/api/skills", async (req, res) => {
   try {
-    const { name, name_en, description, description_ja, icon, category, agents, rarity, tags, author, repo, content } = req.body;
+    const { name, name_en, description, description_ja, icon, category, agents, rarity, tags, author, repo, content, visibility } = req.body;
     if (!name) return res.status(400).json({ error: "name required" });
 
     const data = {
@@ -83,7 +88,7 @@ app.post("/api/skills", async (req, res) => {
       description: description || "", description_ja: description_ja || "",
       category: category || "general", agents: agents || ["claude-code"],
       rarity: rarity || "common", tags: tags || [], author: author || "anonymous",
-      repo: repo || "", content: content || "",
+      repo: repo || "", content: content || "", visibility: visibility || "public",
       installs: 0, rating: 0, reviewCount: 0,
       createdAt: Firestore.Timestamp.now(), updatedAt: Firestore.Timestamp.now(),
     };
@@ -129,8 +134,14 @@ app.post("/api/skills/bulk", async (req, res) => {
 app.get("/api/sets", async (req, res) => {
   try {
     const { author, limit = 50 } = req.query;
+    const authUser = req.headers.authorization?.replace("Bearer ", "");
+
     const snapshot = await db.collection("skillsets").limit(Number(limit)).get();
     let sets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    // Filter out private sets unless user is the author
+    sets = sets.filter(s => s.visibility !== "private" || s.author === authUser);
+
     if (author) sets = sets.filter(s => s.author === author);
     sets.sort((a, b) => (b.installs || 0) - (a.installs || 0));
     res.json({ sets, total: sets.length });
@@ -153,12 +164,12 @@ app.get("/api/sets/:id", async (req, res) => {
 // Publish set
 app.post("/api/sets", async (req, res) => {
   try {
-    const { name, description, skills, agents, author, custom_instructions, icon } = req.body;
+    const { name, description, skills, agents, author, custom_instructions, icon, visibility } = req.body;
     if (!name || !skills?.length) return res.status(400).json({ error: "name and skills required" });
 
     const data = {
       name, description: description || "", icon: icon || "📦", skills, agents: agents || ["claude-code"],
-      author: author || "anonymous", custom_instructions: custom_instructions || "",
+      author: author || "anonymous", custom_instructions: custom_instructions || "", visibility: visibility || "public",
       installs: 0, rating: 0, reviewCount: 0, forkedFrom: req.body.forkedFrom || null,
       createdAt: Firestore.Timestamp.now(), updatedAt: Firestore.Timestamp.now(),
     };
