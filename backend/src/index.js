@@ -54,19 +54,49 @@ app.get("/api/skills/:id", async (req, res) => {
 // Register/update skill (from CLI publish)
 app.post("/api/skills", async (req, res) => {
   try {
-    const { name, description, description_ja, category, agents, rarity, tags, author, repo } = req.body;
+    const { name, name_en, description, description_ja, icon, category, agents, rarity, tags, author, repo, content } = req.body;
     if (!name) return res.status(400).json({ error: "name required" });
 
     const data = {
-      name, description: description || "", description_ja: description_ja || "",
+      name, name_en: name_en || "", icon: icon || "⚔️",
+      description: description || "", description_ja: description_ja || "",
       category: category || "general", agents: agents || ["claude-code"],
-      rarity: rarity || "COMMON", tags: tags || [], author: author || "anonymous",
-      repo: repo || "", installs: 0, rating: 0, reviewCount: 0,
+      rarity: rarity || "common", tags: tags || [], author: author || "anonymous",
+      repo: repo || "", content: content || "",
+      installs: 0, rating: 0, reviewCount: 0,
       createdAt: Firestore.Timestamp.now(), updatedAt: Firestore.Timestamp.now(),
     };
 
     await db.collection("skills").doc(name).set(data, { merge: true });
     res.json({ ok: true, id: name });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Bulk import skills
+app.post("/api/skills/bulk", async (req, res) => {
+  try {
+    const { skills } = req.body;
+    if (!skills?.length) return res.status(400).json({ error: "skills array required" });
+
+    const batch = db.batch();
+    for (const s of skills) {
+      if (!s.name) continue;
+      const id = s.id || s.name.toLowerCase().replace(/\s+/g, "-");
+      const ref = db.collection("skills").doc(id);
+      batch.set(ref, {
+        name: s.name, name_en: s.name_en || "", icon: s.icon || "⚔️",
+        description: s.description || "", description_ja: s.description_ja || "",
+        category: s.category || "general", agents: s.agents || ["claude-code"],
+        rarity: s.rarity || "common", tags: s.tags || [], author: s.author || "imported",
+        repo: s.repo || "", content: s.content || "",
+        installs: s.installs || 0, rating: s.rating || 0, reviewCount: s.reviewCount || 0,
+        createdAt: Firestore.Timestamp.now(), updatedAt: Firestore.Timestamp.now(),
+      }, { merge: true });
+    }
+    await batch.commit();
+    res.json({ ok: true, count: skills.length });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -102,11 +132,11 @@ app.get("/api/sets/:id", async (req, res) => {
 // Publish set
 app.post("/api/sets", async (req, res) => {
   try {
-    const { name, description, skills, agents, author, custom_instructions } = req.body;
+    const { name, description, skills, agents, author, custom_instructions, icon } = req.body;
     if (!name || !skills?.length) return res.status(400).json({ error: "name and skills required" });
 
     const data = {
-      name, description: description || "", skills, agents: agents || ["claude-code"],
+      name, description: description || "", icon: icon || "📦", skills, agents: agents || ["claude-code"],
       author: author || "anonymous", custom_instructions: custom_instructions || "",
       installs: 0, rating: 0, reviewCount: 0, forkedFrom: req.body.forkedFrom || null,
       createdAt: Firestore.Timestamp.now(), updatedAt: Firestore.Timestamp.now(),
