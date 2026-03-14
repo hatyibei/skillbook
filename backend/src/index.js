@@ -10,8 +10,75 @@ const db = new Firestore();
 const PORT = process.env.PORT || 8080;
 
 app.use(helmet());
-app.use(cors({ origin: process.env.ALLOWED_ORIGINS?.split(",") || "*" }));
-app.use(express.json());
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",")
+  : ["https://skillbook-web-140498091344.asia-northeast1.run.app", "http://localhost:3000", "http://localhost:8080"];
+app.use(cors({
+  origin: (origin, cb) => {
+    // Allow requests with no origin (CLI, server-to-server)
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    // Also allow any *.run.app origin for preview deployments
+    if (origin.endsWith(".run.app")) return cb(null, true);
+    cb(null, false);
+  },
+  credentials: true,
+}));
+app.use(express.json({ limit: "1mb" }));
+
+// ===== Rate Limiting (in-memory, per-instance) =====
+const rateLimits = new Map();
+function rateLimit(key, maxRequests, windowMs) {
+  const now = Date.now();
+  const entry = rateLimits.get(key);
+  if (!entry || now - entry.start > windowMs) {
+    rateLimits.set(key, { start: now, count: 1 });
+    return false; // not limited
+  }
+  entry.count++;
+  if (entry.count > maxRequests) return true; // limited
+  return false;
+}
+// Cleanup old entries every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of rateLimits) {
+    if (now - v.start > 600000) rateLimits.delete(k);
+  }
+}, 300000);
+
+// ===== Input Sanitization =====
+function sanitize(str, maxLen = 500) {
+  if (typeof str !== "string") return str;
+  return str.slice(0, maxLen).replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<[^>]*>/g, "").trim();
+}
+function sanitizeSkill(data) {
+  return {
+    ...data,
+    name: data.name ? sanitize(data.name, 100) : data.name,
+    name_en: data.name_en ? sanitize(data.name_en, 100) : data.name_en,
+    description: data.description ? sanitize(data.description, 500) : data.description,
+    description_ja: data.description_ja ? sanitize(data.description_ja, 500) : data.description_ja,
+    icon: data.icon ? data.icon.slice(0, 10) : data.icon,
+    repo: data.repo ? sanitize(data.repo, 200) : data.repo,
+    author: data.author ? sanitize(data.author, 50) : data.author,
+    // content is SKILL.md — allow longer but still cap
+    content: data.content ? data.content.slice(0, 50000) : data.content,
+  };
+}
+
+// ===== Admin check for bulk operations =====
+const ADMIN_KEY = process.env.ADMIN_KEY || "sk_admin_" + require("crypto").randomBytes(16).toString("hex");
+
+// ===== Global Read Rate Limit =====
+app.use((req, res, next) => {
+  if (req.method === "GET") {
+    const ip = req.headers["x-forwarded-for"] || req.ip;
+    if (rateLimit(`read:${ip}`, 300, 60000)) {
+      return res.status(429).json({ error: "Too many requests. Please slow down." });
+    }
+  }
+  next();
+});
 
 // ===== Health Check =====
 app.get("/", (req, res) => res.json({
@@ -40,7 +107,7 @@ app.get("/", (req, res) => res.json({
 // Search skills
 app.get("/api/skills", async (req, res) => {
   try {
-    const { q, category, agent, rarity, limit = 50, offset = 0 } = req.query;
+    const { q, category, agent, rarity, limit = 200, offset = 0 } = req.query;
     const authUser = req.headers.authorization?.replace("Bearer ", "");
 
     // Simple query — sort client-side to avoid composite index issues
@@ -80,7 +147,11 @@ app.get("/api/skills/:id", async (req, res) => {
 // Register/update skill (from CLI publish)
 app.post("/api/skills", async (req, res) => {
   try {
-    const { name, name_en, description, description_ja, icon, category, agents, rarity, tags, author, repo, content, visibility } = req.body;
+    const ip = req.headers["x-forwarded-for"] || req.ip;
+    if (rateLimit(`skill-pub:${ip}`, 10, 3600000)) return res.status(429).json({ error: "Rate limit: max 10 skills/hour" });
+
+    const sanitized = sanitizeSkill(req.body);
+    const { name, name_en, description, description_ja, icon, category, agents, rarity, tags, author, repo, content, visibility } = sanitized;
     if (!name) return res.status(400).json({ error: "name required" });
 
     const data = {
@@ -100,9 +171,12 @@ app.post("/api/skills", async (req, res) => {
   }
 });
 
-// Bulk import skills
+// Bulk import skills (admin only)
 app.post("/api/skills/bulk", async (req, res) => {
   try {
+    const adminKey = req.headers["x-admin-key"] || req.headers.authorization?.replace("Bearer ", "");
+    if (adminKey !== ADMIN_KEY) return res.status(403).json({ error: "Admin key required" });
+
     const { skills } = req.body;
     if (!skills?.length) return res.status(400).json({ error: "skills array required" });
 
@@ -164,12 +238,19 @@ app.get("/api/sets/:id", async (req, res) => {
 // Publish set
 app.post("/api/sets", async (req, res) => {
   try {
-    const { name, description, skills, agents, author, custom_instructions, icon, visibility } = req.body;
+    const ip = req.headers["x-forwarded-for"] || req.ip;
+    if (rateLimit(`set-pub:${ip}`, 10, 3600000)) return res.status(429).json({ error: "Rate limit: max 10 sets/hour" });
+
+    const { name: rawName, description: rawDesc, skills, agents, author: rawAuthor, custom_instructions, icon, visibility } = req.body;
+    const name = sanitize(rawName, 100);
+    const description = sanitize(rawDesc || "", 500);
+    const author = sanitize(rawAuthor || "anonymous", 50);
     if (!name || !skills?.length) return res.status(400).json({ error: "name and skills required" });
+    if (skills.length > 50) return res.status(400).json({ error: "max 50 skills per set" });
 
     const data = {
-      name, description: description || "", icon: icon || "📦", skills, agents: agents || ["claude-code"],
-      author: author || "anonymous", custom_instructions: custom_instructions || "", visibility: visibility || "public",
+      name, description, icon: icon ? icon.slice(0, 10) : "📦", skills, agents: agents || ["claude-code"],
+      author, custom_instructions: custom_instructions ? custom_instructions.slice(0, 5000) : "", visibility: visibility || "public",
       installs: 0, rating: 0, reviewCount: 0, forkedFrom: req.body.forkedFrom || null,
       createdAt: Firestore.Timestamp.now(), updatedAt: Firestore.Timestamp.now(),
     };
@@ -204,12 +285,18 @@ app.get("/api/reviews/:targetId", async (req, res) => {
 
 app.post("/api/reviews", async (req, res) => {
   try {
+    const ip = req.headers["x-forwarded-for"] || req.ip;
+    if (rateLimit(`review:${ip}`, 20, 3600000)) return res.status(429).json({ error: "Rate limit: max 20 reviews/hour" });
+
     const { targetId, targetType, author, rating, comment, agentUsed } = req.body;
     if (!targetId || !rating) return res.status(400).json({ error: "targetId and rating required" });
+    if (Number(rating) < 1 || Number(rating) > 5) return res.status(400).json({ error: "rating must be 1-5" });
 
     const review = {
-      targetId, targetType: targetType || "skill", author: author || "anonymous",
-      rating: Number(rating), comment: comment || "", agentUsed: agentUsed || "unknown",
+      targetId: sanitize(targetId, 100), targetType: targetType || "skill",
+      author: sanitize(author || "anonymous", 50),
+      rating: Number(rating), comment: sanitize(comment || "", 1000),
+      agentUsed: sanitize(agentUsed || "unknown", 50),
       createdAt: Firestore.Timestamp.now(),
     };
     const ref = await db.collection("reviews").add(review);
@@ -235,6 +322,9 @@ app.post("/api/reviews", async (req, res) => {
 // ===== Install Tracking =====
 app.post("/api/track/install", async (req, res) => {
   try {
+    const ip = req.headers["x-forwarded-for"] || req.ip;
+    if (rateLimit(`install:${ip}`, 60, 3600000)) return res.status(429).json({ error: "Rate limit exceeded" });
+
     const { skillId, agent, setId } = req.body;
     if (!skillId) return res.status(400).json({ error: "skillId required" });
 
@@ -307,6 +397,9 @@ app.get("/api/users/:username", async (req, res) => {
 // Register — email + password
 app.post("/api/auth/register", async (req, res) => {
   try {
+    const ip = req.headers["x-forwarded-for"] || req.ip;
+    if (rateLimit(`register:${ip}`, 5, 3600000)) return res.status(429).json({ error: "登録のレート制限に達しました。しばらくしてからお試しください" });
+
     const { username, email, password, displayName, favoriteAgent } = req.body;
 
     // Validation
@@ -382,6 +475,9 @@ app.post("/api/auth/register", async (req, res) => {
 // Login — email + password
 app.post("/api/auth/login", async (req, res) => {
   try {
+    const ip = req.headers["x-forwarded-for"] || req.ip;
+    if (rateLimit(`login:${ip}`, 10, 900000)) return res.status(429).json({ error: "ログイン試行回数の制限に達しました。15分後にお試しください" });
+
     const { email, password } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: "メールアドレスとパスワードを入力してね" });
