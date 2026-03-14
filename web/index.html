@@ -695,11 +695,10 @@ body{padding-top:42px}
       <div class="card-name">スキル名</div>
       <div style="font-family:'Press Start 2P',monospace;font-size:7px;color:var(--dim);margin-bottom:6px">SKILL-NAME</div>
       <div class="card-desc-ja" style="color:var(--dim)">日本語の説明がここに表示されます</div>
-      <div class="card-desc-en">English description appears here</div>
       <div class="tags"></div>
       <div class="card-f">
         <div class="agents"><span class="ab">claude-code</span></div>
-        <div class="card-stats"><span class="rating">★0.0</span><span class="installs">0</span></div>
+        <div class="card-stats"><span class="installs">0</span></div>
       </div>
     </div>
     <div style="font-size:11px;color:var(--dim);margin-top:8px;line-height:1.6">
@@ -837,7 +836,7 @@ body{padding-top:42px}
 
 <section class="cta">
   <div style="font-size:40px;margin-bottom:16px">📖✨</div>
-  <a href="#" class="cta-btn pg">スキルの書を開く</a>
+  <a href="https://github.com/hatyibei/skillbook" target="_blank" class="cta-btn pg">GitHub でスターする ⭐</a>
   <div class="cta-s">OSSで公開中 — GitHub でスターをお願いします ⭐</div>
   <div class="cli pb" style="font-size:9px;margin-top:14px;display:inline-flex"><span class="p">$</span><span>npx skillbook init</span><span class="cur"></span></div>
 </section>
@@ -927,8 +926,8 @@ body{padding-top:42px}
 <div class="toast" id="toast"></div>
 
 <footer>
-  <div>📖 スキルの書 / The SkillBook — v0.1.0</div>
-  <div style="margin-top:6px">Built with ❤️ by AI Tech Lead Team / <a href="#">GitHub</a> ・ <a href="#">Discord</a> ・ <a href="#">X</a></div>
+  <div>📖 スキルの書 / The SkillBook — v0.2.0</div>
+  <div style="margin-top:6px">Built with ❤️ by AI Tech Lead Team / <a href="https://github.com/hatyibei/skillbook" target="_blank">GitHub</a> ・ <a href="https://www.npmjs.com/package/skillbook" target="_blank">npm</a></div>
   <div style="margin-top:6px;font-family:'Press Start 2P',monospace;font-size:7px">PRESS START TO CONTRIBUTE</div>
 </footer>
 
@@ -997,7 +996,7 @@ function mapApiSkill(s) {
     icon: s.icon || "⚔️",
     rarity: RARITY_MAP[s.rarity] || s.rarity || "COMMON",
     desc: s.description_ja || s.description || s.desc || "",
-    desc_en: s.description || s.desc_en || "",
+    desc_en: (s.description_ja && s.description && s.description_ja !== s.description) ? s.description : (s.desc_en || ""),
     tags: s.tags || [],
     agents: s.agents || [],
     installs: installs,
@@ -1146,12 +1145,12 @@ function openModal(skill) {
   const rEl = document.getElementById("mRarity");
   rEl.textContent = "\u2605 " + skill.rarity;
   rEl.className = "rarity " + (rc[skill.rarity] || "r-c");
-  document.getElementById("mRating").innerHTML = "\u2605" + (Number(skill.rating)||0).toFixed(1);
+  document.getElementById("mRating").innerHTML = Number(skill.rating) > 0 ? "\u2605" + Number(skill.rating).toFixed(1) : "";
   const fmtI = n => { n=Number(n)||0; return n>=1000?(n/1000).toFixed(1)+"K":String(n); };
   document.getElementById("mInstalls").textContent = fmtI(skill.installs) + " installs";
   // Bilingual descriptions
   document.getElementById("mDescJa").textContent = skill.desc || "";
-  document.getElementById("mDescEn").textContent = skill.desc_en || "";
+  document.getElementById("mDescEn").textContent = (skill.desc_en && skill.desc_en !== skill.desc) ? skill.desc_en : "";
   // Content viewer
   const contentSec = document.getElementById("mContentSection");
   const repoMsgSec = document.getElementById("mRepoMessageSection");
@@ -1190,7 +1189,7 @@ function openModal(skill) {
   // Install commands
   const id = skill.id || skill.name_en?.toLowerCase() || "skill";
   document.getElementById("installCmd1").textContent = "npx skillbook get " + id;
-  document.getElementById("installCmd2").textContent = "npx skillbook search " + (skill.name || id);
+  document.getElementById("installCmd2").textContent = "npx skillbook search " + id;
 
   // Reset review form
   renderStars(0);
@@ -1394,11 +1393,10 @@ function renderSkillPage() {
       <div class="card-name">${s.name}</div>
       ${s.name_en ? '<div style="font-family:\'Press Start 2P\',monospace;font-size:7px;color:var(--dim);margin-bottom:6px">'+s.name_en+'</div>' : ''}
       <div class="card-desc-ja">${s.desc}</div>
-      ${s.desc_en ? '<div class="card-desc-en">'+s.desc_en+'</div>' : ''}
       <div class="tags">${(s.tags||[]).map(t=>'<span class="tag">'+t+'</span>').join("")}</div>
       <div class="card-f">
         <div class="agents">${(s.agents||[]).map(a=>'<span class="ab">'+a+'</span>').join("")}</div>
-        <div class="card-stats"><span class="rating">\u2605${(Number(s.rating)||0).toFixed(1)}</span><span class="installs">${fmtInstalls(s.installs)}</span></div>
+        <div class="card-stats">${Number(s.rating) > 0 ? '<span class="rating">\u2605'+Number(s.rating).toFixed(1)+'</span>' : ''}<span class="installs">${fmtInstalls(s.installs)}</span></div>
       </div>
     </div>
   `).join("");
@@ -1860,11 +1858,10 @@ function updateSkillPreview() {
     <div class="card-name">${name}</div>
     <div style="font-family:'Press Start 2P',monospace;font-size:7px;color:var(--dim);margin-bottom:6px">${nameEn}</div>
     <div class="card-desc-ja">${descJa}</div>
-    <div class="card-desc-en">${descEn}</div>
     <div class="tags">${tags.map(t=>'<span class="tag">'+t+'</span>').join("")}</div>
     <div class="card-f">
       <div class="agents">${Array.from(selectedAgents).map(a=>'<span class="ab">'+a+'</span>').join("")}</div>
-      <div class="card-stats"><span class="rating">★0.0</span><span class="installs">0</span></div>
+      <div class="card-stats"><span class="installs">0</span></div>
     </div>
   `;
 }
