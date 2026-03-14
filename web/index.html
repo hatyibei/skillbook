@@ -191,10 +191,22 @@ body{padding-top:42px}
 .form-input{width:100%;background:var(--bg);border:2px solid var(--border);border-radius:2px;padding:10px 14px;font-family:'DotGothic16',monospace;font-size:13px;color:var(--text);outline:none;transition:border .2s}
 .form-input:focus{border-color:var(--gold)}
 .form-input::placeholder{color:var(--dim)}
-.skill-picker{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-.skill-pick{font-size:11px;padding:5px 10px;background:var(--bg);border:2px solid var(--border);border-radius:2px;color:var(--dim);cursor:pointer;transition:.15s}
-.skill-pick:hover{border-color:var(--blue);color:var(--text)}
-.skill-pick.selected{border-color:var(--gold);color:var(--gold);background:rgba(240,192,64,.08)}
+.skill-picker{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;max-height:320px;overflow-y:auto;padding:4px}
+.skill-picker::-webkit-scrollbar{width:4px}
+.skill-picker::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.skill-pick{font-size:11px;padding:8px 12px;background:var(--bg);border:2px solid var(--border);border-radius:4px;color:var(--dim);cursor:pointer;transition:.2s;display:flex;align-items:center;gap:6px;min-width:140px;flex:1 1 calc(50% - 6px);max-width:calc(50% - 3px)}
+.skill-pick .sp-icon{font-size:16px;flex-shrink:0}
+.skill-pick .sp-info{display:flex;flex-direction:column;gap:1px;overflow:hidden}
+.skill-pick .sp-name{font-size:11px;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.skill-pick .sp-cat{font-size:9px;opacity:.6}
+.skill-pick:hover{border-color:var(--blue);color:var(--text);transform:translateY(-1px)}
+.skill-pick.selected{border-color:var(--gold);color:var(--gold);background:rgba(240,192,64,.08);box-shadow:0 0 8px rgba(240,192,64,.15)}
+.skill-pick.selected .sp-check{display:block}
+.sp-check{display:none;margin-left:auto;color:var(--gold);font-size:14px;flex-shrink:0}
+.picker-cats{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px}
+.picker-cat{font-size:10px;padding:4px 10px;background:var(--bg);border:1px solid var(--border);border-radius:2px;color:var(--dim);cursor:pointer;transition:.15s}
+.picker-cat:hover{border-color:var(--blue);color:var(--text)}
+.picker-cat.active{border-color:var(--gold);color:var(--gold);background:rgba(240,192,64,.08)}
 
 /* My page */
 .profile-card{background:var(--panel);padding:24px;border-radius:2px;display:flex;gap:20px;align-items:center;margin-bottom:20px}
@@ -251,9 +263,10 @@ body{padding-top:42px}
 .ref-desc{font-size:11px;color:var(--dim);margin-top:4px;line-height:1.5}
 
 /* Set catalog cards */
-.setcat-card{background:var(--card);padding:18px;border-radius:2px;transition:.2s;cursor:pointer;border:2px solid var(--border)}
-.setcat-card:hover{transform:translateY(-2px);border-color:var(--blue)}
-.setcat-card.equipped{border-color:var(--gold)}
+.setcat-card{background:var(--card);padding:18px;border-radius:4px;transition:.25s;cursor:pointer;border:2px solid var(--border)}
+.setcat-card:hover{transform:translateY(-2px);border-color:var(--blue);box-shadow:0 4px 16px rgba(0,0,0,.2)}
+.setcat-card.equipped{border-color:var(--gold);box-shadow:0 0 12px rgba(240,192,64,.1)}
+.setcat-card.expanded{border-color:var(--blue)}
 .setcat-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .setcat-name{font-size:15px;color:var(--bright)}
 .setcat-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
@@ -715,11 +728,15 @@ body{padding-top:42px}
     <div class="form-group">
       <label class="form-label">スキルを選択（クリックで追加/削除）</label>
       <div style="margin-bottom:6px">
-        <input class="form-input" id="skillPickerSearch" placeholder="🔍 スキルを検索..." oninput="filterSkillPicker()" style="font-size:12px;padding:8px 12px">
+        <input class="form-input" id="skillPickerSearch" placeholder="🔍 スキル名・カテゴリで検索..." oninput="filterSkillPicker()" style="font-size:12px;padding:8px 12px">
       </div>
+      <div class="picker-cats" id="pickerCats"></div>
       <div class="skill-picker" id="skillPicker"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+        <div id="selectedSkillsInfo" style="font-size:12px;color:var(--gold);font-weight:bold">選択中: 0個</div>
+        <div id="selectedSkillsList" style="font-size:10px;color:var(--dim);max-width:60%;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+      </div>
     </div>
-    <div id="selectedSkillsInfo" style="font-size:12px;color:var(--gold);margin-bottom:12px;font-weight:bold">選択中: 0個</div>
     <button class="submit-btn" style="width:100%" id="createSetBtn" onclick="createNewSet()">📦 セットを登録する</button>
     <div style="font-size:11px;color:var(--dim);margin-top:10px">※ 冒険者登録が必要です。登録後、「📦 セット」タブに公開されます。</div>
   </div>
@@ -932,8 +949,9 @@ let SKILLS_DATA = [
 ];
 
 const CATEGORIES = [
-  {id:"all",label:"🌟 すべて"},{id:"development",label:"💻 開発"},{id:"data",label:"📊 データ分析"},
+  {id:"all",label:"🌟 すべて"},{id:"development",label:"💻 開発"},{id:"data",label:"📊 データ"},
   {id:"document",label:"📝 ドキュメント"},{id:"design",label:"🎨 デザイン"},{id:"business",label:"💼 ビジネス"},
+  {id:"security",label:"🔒 セキュリティ"},{id:"devops",label:"⚙️ DevOps"},{id:"general",label:"🌐 その他"},
 ];
 
 let SETS_DATA = [
@@ -976,6 +994,7 @@ function mapApiSkill(s) {
 function mapApiSet(s) {
   return {
     name: s.name || s.id,
+    icon: s.icon || "📦",
     label: `${s.icon||"📦"} ${s.name}`,
     description: s.description || "",
     author: s.author || "",
@@ -1062,7 +1081,15 @@ function openModal(skill) {
     document.getElementById("mRepoMessageLink").href = skill.repo;
   } else {
     contentSec.style.display="none";
-    repoMsgSec.style.display="none";
+    repoMsgSec.style.display="";
+    document.getElementById("mRepoMessageLink").href = "#";
+    repoMsgSec.innerHTML = `
+      <div class="modal-label">📖 SKILL.md について</div>
+      <div style="font-size:12px;color:var(--dim);background:var(--bg);padding:12px;border-radius:2px;border-left:3px solid var(--gold)">
+        <div style="margin-bottom:6px;color:var(--gold);font-weight:bold">🔮 SKILL.md 未登録</div>
+        <div>このスキルにはまだ SKILL.md が追加されていません。スキル作者が SKILL.md を追加すると、ここに内容が表示されます。</div>
+        <div style="margin-top:8px;font-size:11px">スキル作者の方：「⚔️ スキル登録」からSKILL.md内容を追加できます。</div>
+      </div>`;
   }
   // Repo link
   const repoSec = document.getElementById("mRepoSection");
@@ -1340,9 +1367,12 @@ function renderSetCatalog() {
         <div style="font-size:11px;color:var(--gold);margin-bottom:8px;font-weight:bold">含まれるスキル</div>
         <div style="display:grid;gap:6px">
           ${skillDetails.map(sd => `
-            <div style="background:var(--bg);padding:10px;border-radius:2px;border-left:3px solid var(--blue);cursor:pointer;transition:.15s" class="skill-detail-item" data-skill-id="${sd.obj?.id||''}" onclick="event.stopPropagation();${sd.obj ? "openModal(SKILLS_DATA.find(s=>s.id==='"+sd.obj.id+"'))" : ''}">
-              <div style="font-size:12px;color:var(--bright);margin-bottom:2px">${sd.text}</div>
-              ${sd.obj ? '<div style="font-size:10px;color:var(--dim)">'+sd.obj.desc.substring(0,50)+(sd.obj.desc.length>50?'...':'')+'</div>' : '<div style="font-size:10px;color:var(--dim);font-style:italic">外部スキル</div>'}
+            <div style="background:var(--bg);padding:10px 12px;border-radius:4px;border-left:3px solid ${sd.obj?'var(--blue)':'var(--border)'};cursor:${sd.obj?'pointer':'default'};transition:.2s;display:flex;align-items:flex-start;gap:8px" class="skill-detail-item" data-skill-id="${sd.obj?.id||''}" onclick="event.stopPropagation();${sd.obj ? "openModal(SKILLS_DATA.find(s=>s.id==='"+sd.obj.id+"'))" : ''}" ${sd.obj?'onmouseover="this.style.borderLeftColor=\'var(--gold)\'"':''}  ${sd.obj?'onmouseout="this.style.borderLeftColor=\'var(--blue)\'"':''}>
+              <div style="flex:1">
+                <div style="font-size:12px;color:var(--bright);margin-bottom:2px">${sd.text}</div>
+                ${sd.obj ? '<div style="font-size:10px;color:var(--dim);line-height:1.4">'+sd.obj.desc.substring(0,60)+(sd.obj.desc.length>60?'...':'')+'</div>' : '<div style="font-size:10px;color:var(--dim);font-style:italic">外部スキル</div>'}
+              </div>
+              ${sd.obj ? '<div style="font-size:9px;color:var(--blue);white-space:nowrap;margin-top:2px">詳細 →</div>' : ''}
             </div>
           `).join("")}
         </div>
@@ -1366,6 +1396,7 @@ function renderSetCatalog() {
         e.stopPropagation();
         const isOpen = detail.style.display !== "none";
         detail.style.display = isOpen ? "none" : "block";
+        card.classList.toggle("expanded", !isOpen);
         if (toggleIcon) toggleIcon.style.transform = isOpen ? "rotate(0deg)" : "rotate(180deg)";
       });
     }
@@ -1836,19 +1867,52 @@ async function registerSkill() {
 // ===== Create Set =====
 let selectedSkills = new Set();
 
+let pickerCatFilter = "all";
+
 function renderSkillPicker() {
+  // Render category tabs
+  const catEl = document.getElementById("pickerCats");
+  const catLabels = {all:"🌟 すべて",development:"💻 開発",data:"📊 データ",document:"📝 ドキュメント",design:"🎨 デザイン",business:"💼 ビジネス",security:"🔒 セキュリティ",devops:"⚙️ DevOps",general:"🌐 その他"};
+  const usedCats = new Set(SKILLS_DATA.map(s => s.category || "general"));
+  usedCats.add("all");
+  catEl.innerHTML = Object.entries(catLabels)
+    .filter(([k]) => usedCats.has(k))
+    .map(([k,v]) => `<span class="picker-cat ${pickerCatFilter===k?'active':''}" data-cat="${k}">${v}</span>`)
+    .join("");
+  catEl.querySelectorAll(".picker-cat").forEach(c => {
+    c.onclick = () => { pickerCatFilter = c.dataset.cat; renderSkillPicker(); };
+  });
+
+  // Filter by category
+  const filtered = pickerCatFilter === "all" ? SKILLS_DATA : SKILLS_DATA.filter(s => (s.category||"general") === pickerCatFilter);
+
   const el = document.getElementById("skillPicker");
-  el.innerHTML = SKILLS_DATA.map(s =>
-    '<span class="skill-pick '+(selectedSkills.has(s.id)?'selected':'')+'" data-id="'+s.id+'">'+s.icon+' '+s.name+'</span>'
+  el.innerHTML = filtered.map(s =>
+    `<span class="skill-pick ${selectedSkills.has(s.id)?'selected':''}" data-id="${s.id}" data-cat="${s.category||'general'}">
+      <span class="sp-icon">${s.icon}</span>
+      <span class="sp-info"><span class="sp-name">${s.name}</span><span class="sp-cat">${s.rarity} · ${catLabels[s.category]||s.category||''}</span></span>
+      <span class="sp-check">✓</span>
+    </span>`
   ).join("");
   el.querySelectorAll(".skill-pick").forEach(sp => {
     sp.onclick = () => {
       const id = sp.dataset.id;
       if (selectedSkills.has(id)) selectedSkills.delete(id); else selectedSkills.add(id);
       sp.classList.toggle("selected");
-      document.getElementById("selectedSkillsInfo").textContent = "選択中: " + selectedSkills.size + "個";
+      updateSelectedInfo();
     };
   });
+  // Apply search filter if active
+  filterSkillPicker();
+}
+
+function updateSelectedInfo() {
+  document.getElementById("selectedSkillsInfo").textContent = "選択中: " + selectedSkills.size + "個";
+  const names = Array.from(selectedSkills).map(id => {
+    const s = SKILLS_DATA.find(sk => sk.id === id);
+    return s ? s.icon + s.name : id;
+  });
+  document.getElementById("selectedSkillsList").textContent = names.join(", ");
 }
 
 async function createNewSet() {
