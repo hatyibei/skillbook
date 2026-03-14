@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 8080;
 app.use(helmet());
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",")
-  : ["https://skillbook-web-140498091344.asia-northeast1.run.app", "http://localhost:3000", "http://localhost:8080"];
+  : ["https://skillbooks.dev", "https://skillbook-web-140498091344.asia-northeast1.run.app", "http://localhost:3000", "http://localhost:8080"];
 app.use(cors({
   origin: (origin, cb) => {
     // Allow requests with no origin (CLI, server-to-server)
