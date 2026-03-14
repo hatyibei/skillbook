@@ -1,7 +1,9 @@
 const fs = require("fs");
 const path = require("path");
 const { execSync } = require("child_process");
-const { STORE_DIR, SETS_DIR, AGENT_SKILL_DIRS, C } = require("./constants");
+const https = require("https");
+const http = require("http");
+const { STORE_DIR, SETS_DIR, AGENT_SKILL_DIRS, C, API_BASE } = require("./constants");
 const store = require("./store");
 const ui = require("./ui");
 
@@ -402,4 +404,260 @@ function help() {
 `);
 }
 
-module.exports = { init, add, importSkill, install, create, equip, unequip, fork, agent, publish, list, status, help };
+// ===== API Helper =====
+function apiGet(urlPath) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(urlPath, API_BASE);
+    const mod = url.protocol === "https:" ? https : http;
+    mod.get(url.toString(), { headers: { "Accept": "application/json" } }, (res) => {
+      let data = "";
+      res.on("data", chunk => data += chunk);
+      res.on("end", () => {
+        try { resolve(JSON.parse(data)); } catch (e) { reject(new Error("Invalid JSON response")); }
+      });
+    }).on("error", reject);
+  });
+}
+
+function apiPost(urlPath, body, token) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(urlPath, API_BASE);
+    const mod = url.protocol === "https:" ? https : http;
+    const payload = JSON.stringify(body);
+    const headers = { "Content-Type": "application/json", "Accept": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const req = mod.request(url.toString(), { method: "POST", headers }, (res) => {
+      let data = "";
+      res.on("data", chunk => data += chunk);
+      res.on("end", () => {
+        try { resolve(JSON.parse(data)); } catch (e) { reject(new Error("Invalid JSON response")); }
+      });
+    });
+    req.on("error", reject);
+    req.write(payload);
+    req.end();
+  });
+}
+
+// ===== SEARCH (from skillbook catalog) =====
+async function search(args) {
+  const query = args.join(" ");
+  if (!query) return ui.err("Usage: skillbook search <keyword>");
+  try {
+    ui.info(`Searching skillbook catalog for "${query}"...`);
+    const data = await apiGet(`/api/agent/search?q=${encodeURIComponent(query)}`);
+    const skills = data.results || data.skills || [];
+    if (!skills.length) { ui.warn("No results found."); return; }
+    console.log(`\n  ${C.BOLD}Search Results (${skills.length})${C.RESET}\n`);
+    for (const s of skills.slice(0, 15)) {
+      const r = (s.rarity || "COMMON").toUpperCase();
+      const rc = require("./constants").RARITY_COLORS[r] || C.DIM;
+      const icon = s.icon || "⚔️";
+      const installs = s.installs || 0;
+      const rating = (s.avgRating || s.rating || 0).toFixed(1);
+      console.log(`  ${icon} ${rc}[${r}]${C.RESET} ${C.BOLD}${s.name || s.id}${C.RESET} ${C.DIM}(${s.id})${C.RESET}`);
+      console.log(`    ${s.description_ja || s.description || ""}`);
+      console.log(`    ${C.CYAN}★${rating}${C.RESET} | ${installs} installs | ${(s.agents || []).join(", ")}`);
+      console.log(`    ${C.DIM}→ skillbook get ${s.id}${C.RESET}\n`);
+    }
+  } catch (e) {
+    ui.err(`Search failed: ${e.message}`);
+  }
+}
+
+// ===== GET (download skill from catalog) =====
+async function get(args) {
+  const id = args[0];
+  if (!id) return ui.err("Usage: skillbook get <skill-id>");
+  store.ensureDirs();
+
+  const dest = path.join(STORE_DIR, id);
+  if (fs.existsSync(dest)) { ui.warn(`"${id}" already exists in store. Use --force to overwrite.`); return; }
+
+  try {
+    ui.info(`Downloading "${id}" from skillbook catalog...`);
+    const data = await apiGet(`/api/agent/install/${encodeURIComponent(id)}`);
+
+    if (data.error) { ui.err(data.error); return; }
+    if (!data.content && !data.metadata) { ui.err(`Skill "${id}" not found in catalog.`); return; }
+
+    // Write SKILL.md
+    fs.mkdirSync(dest, { recursive: true });
+    const content = data.content || `---\nname: ${id}\n---\n\n# ${data.metadata?.name || id}\n`;
+    fs.writeFileSync(path.join(dest, "SKILL.md"), content);
+
+    const meta = data.metadata || {};
+    const r = (meta.rarity || "COMMON").toUpperCase();
+    const rc = require("./constants").RARITY_COLORS[r] || C.DIM;
+    ui.ok(`Downloaded "${id}" ${rc}[${r}]${C.RESET}`);
+    ui.info(`Stored: ~/.skillbook/store/${id}/SKILL.md`);
+    ui.info(`Now equip it: skillbook equip <set-with-this-skill>`);
+
+    // Track install
+    apiGet(`/api/skills/${encodeURIComponent(id)}/install`).catch(() => {});
+  } catch (e) {
+    ui.err(`Download failed: ${e.message}`);
+  }
+}
+
+// ===== GET-SET (download entire set from catalog) =====
+async function getSet(args) {
+  const id = args[0];
+  if (!id) return ui.err("Usage: skillbook get-set <set-id>");
+  store.ensureDirs();
+
+  try {
+    ui.info(`Fetching set "${id}" from catalog...`);
+    const setsData = await apiGet(`/api/sets`);
+    const sets = setsData.sets || [];
+    const target = sets.find(s => s.id === id || s.name === id);
+    if (!target) { ui.err(`Set "${id}" not found in catalog.`); return; }
+
+    // Parse skill IDs from set
+    const skillNames = (target.skills || []).map(sk => {
+      if (typeof sk === "string") {
+        // Remove emoji prefix: "👀 コードレビューアシスタント" → try to match by name
+        return sk.replace(/^[^\w]+\s*/, "").trim();
+      }
+      return sk.name || sk.id || sk;
+    });
+
+    ui.info(`Set "${target.name}" contains ${skillNames.length} skills`);
+
+    // Download each skill
+    const downloadedSkills = [];
+    for (const skillName of skillNames) {
+      // Search for the skill by name in catalog
+      const skillsData = await apiGet(`/api/agent/search?q=${encodeURIComponent(skillName)}`);
+      const results = skillsData.results || skillsData.skills || [];
+      const match = results[0]; // Best match
+
+      if (match) {
+        const skillId = match.id;
+        const dest = path.join(STORE_DIR, skillId);
+        if (!fs.existsSync(dest)) {
+          const installData = await apiGet(`/api/agent/install/${encodeURIComponent(skillId)}`);
+          if (installData.content) {
+            fs.mkdirSync(dest, { recursive: true });
+            fs.writeFileSync(path.join(dest, "SKILL.md"), installData.content);
+            ui.ok(`Downloaded "${skillId}"`);
+          } else {
+            ui.warn(`No content for "${skillId}", creating placeholder`);
+            fs.mkdirSync(dest, { recursive: true });
+            fs.writeFileSync(path.join(dest, "SKILL.md"), `---\nname: ${skillId}\n---\n\n# ${match.name || skillId}\n`);
+          }
+        } else {
+          ui.info(`"${skillId}" already in store`);
+        }
+        downloadedSkills.push(skillId);
+      } else {
+        ui.warn(`Could not find skill matching "${skillName}"`);
+      }
+    }
+
+    // Create local set
+    const setName = target.id || target.name;
+    store.saveSet(setName, {
+      description: target.description || "",
+      skills: downloadedSkills,
+      custom_instructions: "",
+      agents: target.agents || ["claude-code"],
+      created: new Date().toISOString(),
+    });
+
+    ui.ok(`Set "${setName}" ready with ${downloadedSkills.length} skills`);
+    ui.info(`Equip it: skillbook equip ${setName}`);
+  } catch (e) {
+    ui.err(`Failed: ${e.message}`);
+  }
+}
+
+// ===== LOGIN (store API key) =====
+function login(args) {
+  const { flags } = parseFlags(args);
+  const apiKey = flags["api-key"] || flags.key || args[0];
+  if (!apiKey) {
+    ui.err("Usage: skillbook login --api-key sk_xxxxx");
+    ui.info("Get your API key at: https://skillbook-web-140498091344.asia-northeast1.run.app (マイページ)");
+    return;
+  }
+  const config = store.readConfig();
+  config.apiKey = apiKey;
+  store.writeConfig(config);
+  ui.ok("API key saved to ~/.skillbook/config.json");
+  ui.info("You can now publish skills: skillbook publish-remote <set-name>");
+}
+
+// ===== BROWSE (discover curated skills) =====
+async function browse(args) {
+  const agent = args[0] || "claude-code";
+  try {
+    ui.info(`Fetching recommended skills for ${agent}...`);
+    const data = await apiGet(`/api/agent/discover?agent=${encodeURIComponent(agent)}`);
+    const skills = data.recommended_skills || [];
+    const sets = data.recommended_sets || [];
+    if (!skills.length && !sets.length) { ui.warn("No recommendations found."); return; }
+    if (skills.length) {
+      console.log(`\n  ${C.BOLD}📖 Recommended Skills for ${agent}${C.RESET}\n`);
+      for (const s of skills) {
+        const r = (s.rarity || "COMMON").toUpperCase();
+        const rc = require("./constants").RARITY_COLORS[r] || C.DIM;
+        console.log(`  ${s.icon || "⚔️"} ${rc}[${r}]${C.RESET} ${C.BOLD}${s.name || s.id}${C.RESET}`);
+        console.log(`    ${s.description_ja || s.description || ""}`);
+        console.log(`    ${C.DIM}→ skillbook get ${s.id}${C.RESET}\n`);
+      }
+    }
+    if (sets.length) {
+      console.log(`  ${C.BOLD}📦 Recommended Sets${C.RESET}\n`);
+      for (const s of sets) {
+        console.log(`  📦 ${C.BOLD}${s.name || s.id}${C.RESET} (${s.skill_count} skills)`);
+        console.log(`    ${s.description || ""}`);
+        console.log(`    ${C.DIM}→ skillbook get-set ${s.id}${C.RESET}\n`);
+      }
+    }
+  } catch (e) {
+    ui.err(`Browse failed: ${e.message}`);
+  }
+}
+
+// Updated help
+function helpFull() {
+  ui.banner();
+  console.log(`  ${C.BOLD}Core Commands:${C.RESET}
+    init [agent]                          Initialize for an agent
+    add <name>                            Create a blank skill in store
+    import <path|git-url> [--name alias]  Import skill from local dir or git
+    install <npm-package>                 Install skill(s) from npm
+    create <set> --skills a,b --desc "…"  Create a named skill set
+    equip <set>                           Activate a skill set
+    unequip                               Deactivate current set
+
+  ${C.BOLD}${C.YELLOW}Catalog Commands:${C.RESET}
+    search <keyword>                      Search the skillbook catalog
+    browse [agent]                        Discover recommended skills
+    get <skill-id>                        Download a skill from catalog
+    get-set <set-id>                      Download an entire set + skills
+
+  ${C.BOLD}Management:${C.RESET}
+    list [skills|sets|all]                List skills and/or sets
+    status                                Show configuration
+    agent [name]                          Switch agent (or show current)
+    fork <set> --name <new>               Fork a skill set
+
+  ${C.BOLD}Publishing:${C.RESET}
+    login --api-key sk_xxxxx              Store your API key
+    publish <set> [--scope org]           Prepare set for npm publish
+
+  ${C.BOLD}Agents:${C.RESET} ${Object.keys(AGENT_SKILL_DIRS).join(", ")}
+
+  ${C.BOLD}Examples:${C.RESET}
+    $ skillbook search コードレビュー
+    $ skillbook get code-review
+    $ skillbook get-set dev-review-set
+    $ skillbook equip dev-review-set
+    $ skillbook browse cursor
+    $ skillbook login --api-key sk_193c28...
+`);
+}
+
+module.exports = { init, add, importSkill, install, create, equip, unequip, fork, agent, publish, list, status, help: helpFull, search, get, getSet, login, browse };

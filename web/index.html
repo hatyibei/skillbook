@@ -1104,8 +1104,8 @@ function openModal(skill) {
 
   // Install commands
   const id = skill.id || skill.name_en?.toLowerCase() || "skill";
-  document.getElementById("installCmd1").textContent = "npx skillbook install " + id;
-  document.getElementById("installCmd2").textContent = "npx skillbook add " + id + " --import";
+  document.getElementById("installCmd1").textContent = "npx skillbook get " + id;
+  document.getElementById("installCmd2").textContent = "npx skillbook search " + (skill.name || id);
 
   // Reset review form
   renderStars(0);
