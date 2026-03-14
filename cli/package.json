@@ -1,6 +1,6 @@
 {
   "name": "skillbook",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "📖 スキルの書 — RPG-style AI agent skill set manager. Search, equip, and share SKILL.md files for Claude Code, Cursor, Copilot, and more.",
   "bin": {
     "skillbook": "./bin/skillbook.js"
@@ -24,7 +24,7 @@
     "type": "git",
     "url": "https://github.com/hatyibei/skillbook"
   },
-  "homepage": "https://skillbook-web-140498091344.asia-northeast1.run.app",
+  "homepage": "https://skillbooks.dev",
   "bugs": {
     "url": "https://github.com/hatyibei/skillbook/issues"
   }

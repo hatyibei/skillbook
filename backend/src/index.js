@@ -82,7 +82,7 @@ app.use((req, res, next) => {
 
 // ===== Health Check =====
 app.get("/", (req, res) => res.json({
-  status: "ok", service: "skillbook-api", version: "0.2.0",
+  status: "ok", service: "skillbook-api", version: "0.3.0",
   agent_api: {
     search: "GET /api/agent/search?q=keyword&agent=claude-code",
     discover: "GET /api/agent/discover?agent=claude-code",

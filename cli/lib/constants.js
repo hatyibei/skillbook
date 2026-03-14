@@ -29,6 +29,6 @@ const RARITY_COLORS = {
   LEGENDARY: C.YELLOW, EPIC: C.MAGENTA, RARE: C.BLUE, COMMON: C.DIM,
 };
 
-const API_BASE = "https://skillbook-api-140498091344.asia-northeast1.run.app";
+const API_BASE = "https://api.skillbooks.dev";
 
 module.exports = { SKILLBOOK_HOME, STORE_DIR, SETS_DIR, CONFIG_FILE, AGENT_SKILL_DIRS, C, RARITY_COLORS, API_BASE };
