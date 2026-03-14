@@ -251,6 +251,23 @@ body{padding-top:42px}
 .skill-content{background:var(--bg);border:2px solid var(--border);border-radius:2px;padding:16px;font-size:12px;color:var(--dim);line-height:1.8;max-height:300px;overflow-y:auto;white-space:pre-wrap;font-family:'DotGothic16',monospace}
 .skill-content code{background:rgba(255,255,255,.06);padding:1px 4px;border-radius:2px;font-size:11px}
 
+/* Markdown Rendered Content */
+.skill-content-rendered{background:var(--bg);border:2px solid var(--border);border-radius:2px;padding:16px 20px;font-size:12px;color:var(--dim);line-height:1.8;max-height:400px;overflow-y:auto}
+.skill-content-rendered h1{font-size:16px;color:var(--gold);margin:16px 0 8px;border-bottom:1px solid var(--border);padding-bottom:4px}
+.skill-content-rendered h1:first-child{margin-top:0}
+.skill-content-rendered h2{font-size:14px;color:var(--bright);margin:14px 0 6px}
+.skill-content-rendered h3{font-size:13px;color:var(--blue);margin:10px 0 4px}
+.skill-content-rendered p{margin:8px 0;color:var(--text)}
+.skill-content-rendered ul,.skill-content-rendered ol{margin:6px 0;padding-left:20px}
+.skill-content-rendered li{margin:3px 0;color:var(--text)}
+.skill-content-rendered code{background:rgba(255,255,255,.08);padding:1px 5px;border-radius:2px;font-size:11px;color:var(--green);font-family:'Press Start 2P',monospace}
+.skill-content-rendered pre{background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:2px;padding:12px;margin:8px 0;overflow-x:auto}
+.skill-content-rendered pre code{background:none;padding:0;font-size:10px;color:var(--green)}
+.skill-content-rendered blockquote{border-left:3px solid var(--gold);padding-left:12px;margin:8px 0;color:var(--dim);font-style:italic}
+.skill-content-rendered strong{color:var(--bright)}
+.skill-content-rendered a{color:var(--blue);text-decoration:underline}
+.skill-content-rendered hr{border:none;border-top:1px solid var(--border);margin:12px 0}
+
 /* Bilingual desc */
 .card-desc-ja{font-size:12px;color:var(--text);line-height:1.6;margin-bottom:4px}
 .card-desc-en{font-size:11px;color:var(--dim);line-height:1.5;margin-bottom:10px}
@@ -463,6 +480,7 @@ body{padding-top:42px}
   </div>
 
   <div class="filter-bar">
+    <input class="form-input" id="setSearchInput" placeholder="🔍 セット名で検索..." oninput="renderSetCatalog()" style="max-width:300px;font-size:12px;padding:8px 12px">
     <select id="setSortSelect" onchange="renderSetCatalog()">
       <option value="popular">🔥 人気順</option>
       <option value="skills">📦 スキル数順</option>
@@ -848,7 +866,8 @@ body{padding-top:42px}
           <div class="modal-label">📋 コピー SKILL.md</div>
           <button class="copy-btn" id="copyContentBtn" style="font-size:10px;padding:3px 8px">📋 コピー</button>
         </div>
-        <div class="skill-content" id="mContent"></div>
+        <div class="skill-content-rendered" id="mContent"></div>
+        <div id="mContentRaw" style="display:none"></div>
       </div>
       <div class="modal-section" id="mRepoSection" style="display:none">
         <div class="modal-label">🔗 リポジトリ</div>
@@ -1043,6 +1062,66 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove("show"), 2500);
 }
 
+// ===== Markdown Renderer =====
+function renderMarkdown(md) {
+  if (!md) return "";
+  let html = md
+    .replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => `<pre><code>${code.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</code></pre>`);
+
+  const lines = html.split('\n');
+  let result = [];
+  let inList = false;
+  let listType = '';
+
+  function closeList() {
+    if (inList) { result.push(listType === 'ul' ? '</ul>' : '</ol>'); inList = false; }
+  }
+
+  function inline(text) {
+    return text
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+
+    if (line.includes('<pre>') || line.includes('</pre>')) {
+      result.push(line);
+      continue;
+    }
+
+    if (line.startsWith('### ')) { closeList(); result.push('<h3>' + inline(line.slice(4)) + '</h3>'); continue; }
+    if (line.startsWith('## ')) { closeList(); result.push('<h2>' + inline(line.slice(3)) + '</h2>'); continue; }
+    if (line.startsWith('# ')) { closeList(); result.push('<h1>' + inline(line.slice(2)) + '</h1>'); continue; }
+
+    if (/^---+$/.test(line.trim())) { closeList(); result.push('<hr>'); continue; }
+
+    if (line.startsWith('> ')) { closeList(); result.push('<blockquote>' + inline(line.slice(2)) + '</blockquote>'); continue; }
+
+    if (/^[\s]*[-*] /.test(line)) {
+      if (!inList || listType !== 'ul') { closeList(); result.push('<ul>'); inList = true; listType = 'ul'; }
+      result.push('<li>' + inline(line.replace(/^[\s]*[-*] /, '')) + '</li>');
+      continue;
+    }
+
+    if (/^[\s]*\d+\. /.test(line)) {
+      if (!inList || listType !== 'ol') { closeList(); result.push('<ol>'); inList = true; listType = 'ol'; }
+      result.push('<li>' + inline(line.replace(/^[\s]*\d+\. /, '')) + '</li>');
+      continue;
+    }
+
+    if (line.trim() === '') { closeList(); continue; }
+
+    closeList();
+    result.push('<p>' + inline(line) + '</p>');
+  }
+  closeList();
+  return result.join('\n');
+}
+
 // ===== Copy to clipboard =====
 function copyCmd(text, btnEl) {
   navigator.clipboard.writeText(text).then(() => {
@@ -1079,7 +1158,8 @@ function openModal(skill) {
   if (skill.content) {
     contentSec.style.display="";
     repoMsgSec.style.display="none";
-    document.getElementById("mContent").textContent = skill.content;
+    document.getElementById("mContent").innerHTML = renderMarkdown(skill.content);
+    document.getElementById("mContentRaw").textContent = skill.content;
   } else if (skill.repo) {
     contentSec.style.display="none";
     repoMsgSec.style.display="";
@@ -1141,7 +1221,7 @@ document.getElementById("installBox2").onclick = () => copyCmd(document.getEleme
 // Content copy button
 document.getElementById("copyContentBtn").onclick = (e) => {
   e.stopPropagation();
-  const content = document.getElementById("mContent").textContent;
+  const content = document.getElementById("mContentRaw").textContent;
   navigator.clipboard.writeText(content).then(() => {
     const btn = document.getElementById("copyContentBtn");
     btn.textContent = "コピーしました！";
@@ -1345,6 +1425,17 @@ function renderSetCatalog() {
 
   const sort = document.getElementById("setSortSelect")?.value || "popular";
   let sorted = [...SETS_DATA];
+
+  const setQuery = (document.getElementById("setSearchInput")?.value || "").toLowerCase();
+  if (setQuery) {
+    sorted = sorted.filter(s =>
+      (s.name||"").toLowerCase().includes(setQuery) ||
+      (s.description||"").toLowerCase().includes(setQuery) ||
+      (s.label||"").toLowerCase().includes(setQuery) ||
+      (s.skills||[]).some(sk => (typeof sk === 'string' ? sk : sk.name||'').toLowerCase().includes(setQuery))
+    );
+  }
+
   if (sort === "popular") sorted.sort((a,b) => (b.skills?.length||0) - (a.skills?.length||0));
   else if (sort === "skills") sorted.sort((a,b) => (b.skills?.length||0) - (a.skills?.length||0));
   else if (sort === "name") sorted.sort((a,b) => (a.name||"").localeCompare(b.name||"",'ja'));
@@ -1390,6 +1481,7 @@ function renderSetCatalog() {
         <div class="setcat-actions">
           <button class="setcat-btn setcat-btn-equip ${s.equipped?'active':''}" data-set="${s.name}" onclick="event.stopPropagation()">${s.equipped?'🔴 解除':'🟢 装備する'}</button>
           <button class="setcat-btn" data-set="${s.name}" onclick="event.stopPropagation();copySetCmd('${s.name}')">📋 コマンドコピー</button>
+          <button class="setcat-btn" style="color:var(--purple);border-color:var(--purple)" onclick="event.stopPropagation();forkSet('${s.name}')">🍴 フォーク</button>
         </div>
       </div>
     </div>
@@ -1450,6 +1542,27 @@ function copySetCmd(name) {
   const cmd = 'npx skillbook equip "' + name + '"';
   navigator.clipboard.writeText(cmd).then(() => showToast("コマンドをコピーしました！"));
   document.getElementById("cliCmd").textContent = cmd;
+}
+
+function forkSet(name) {
+  const set = SETS_DATA.find(s => s.name === name);
+  if (!set) return;
+  switchPage("create");
+  document.getElementById("createName").value = name + "-fork";
+  document.getElementById("createDesc").value = (set.description || "") + "（" + name + "からフォーク）";
+  pickedSetIcon = set.icon || "📦";
+  document.getElementById("setIconBtn").textContent = pickedSetIcon;
+  selectedSkills.clear();
+  (set.skills || []).forEach(sk => {
+    const skillText = typeof sk === 'string' ? sk : (sk.name || sk);
+    const cleanText = skillText.replace(/^[^\w]+ /, '').trim();
+    const match = SKILLS_DATA.find(sd => sd.id === cleanText || sd.name === cleanText || sd.id === skillText || sd.name === skillText);
+    if (match) selectedSkills.add(match.id);
+  });
+  renderSkillPicker();
+  updateSelectedInfo();
+  updateSetPreview();
+  showToast("セット「" + name + "」をフォークしました — 編集して登録してね");
 }
 
 // ===== Page Navigation =====
@@ -2097,6 +2210,7 @@ async function renderMyPage() {
             <span class="set-name" style="cursor:pointer" onclick="openModal(SKILLS_DATA.find(sk=>sk.id==='${s.id}'))">${s.icon} ${s.name}</span>
             <div style="display:flex;gap:4px;align-items:center">
               <span class="rarity r-${(s.rarity||'COMMON')[0].toLowerCase()}" style="font-size:8px">${s.rarity}</span>
+              <button onclick="editMySkill('${s.id}')" style="background:none;border:1px solid var(--blue);color:var(--blue);padding:2px 8px;border-radius:2px;font-size:10px;cursor:pointer;font-family:inherit;transition:.15s" onmouseover="this.style.background='rgba(64,160,240,.15)'" onmouseout="this.style.background='none'">✏️ 編集</button>
               <button onclick="deleteMySkill('${s.id}')" style="background:none;border:1px solid var(--red);color:var(--red);padding:2px 8px;border-radius:2px;font-size:10px;cursor:pointer;font-family:inherit;transition:.15s" onmouseover="this.style.background='rgba(240,64,96,.15)'" onmouseout="this.style.background='none'">🗑 削除</button>
             </div>
           </div>
@@ -2269,6 +2383,28 @@ document.getElementById("submitReview").onclick = async () => {
 };
 
 // ===== Delete Skill/Set =====
+async function editMySkill(id) {
+  const skill = SKILLS_DATA.find(s => s.id === id);
+  if (!skill) return;
+  switchPage("add");
+  document.getElementById("skillName").value = skill.name || "";
+  document.getElementById("skillNameEn").value = skill.name_en || "";
+  document.getElementById("skillDescJa").value = skill.desc || "";
+  document.getElementById("skillDescEn").value = skill.desc_en || "";
+  document.getElementById("skillCategory").value = skill.category || "development";
+  document.getElementById("skillRarity").value = skill.rarity || "COMMON";
+  document.getElementById("skillTags").value = (skill.tags||[]).join(", ");
+  document.getElementById("skillRepo").value = skill.repo || "";
+  const contentEl = document.getElementById("skillContent");
+  if (contentEl) contentEl.value = skill.content || "";
+  pickedSkillIcon = skill.icon || "⚔️";
+  document.getElementById("skillIconBtn").textContent = pickedSkillIcon;
+  document.getElementById("skillIdPreview").textContent = id;
+  updateSkillPreview();
+  updateSkillCharCount();
+  showToast("スキルを編集中 — 変更後「登録する」で上書き保存されます");
+}
+
 async function deleteMySkill(id) {
   if (!confirm("スキル「" + id + "」を削除しますか？ この操作は元に戻せません。")) return;
   try {

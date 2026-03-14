@@ -494,7 +494,7 @@ async function get(args) {
     ui.info(`Now equip it: skillbook equip <set-with-this-skill>`);
 
     // Track install
-    apiGet(`/api/skills/${encodeURIComponent(id)}/install`).catch(() => {});
+    apiPost(`/api/track/install`, { skillId: id, agent: "cli" }).catch(() => {});
   } catch (e) {
     ui.err(`Download failed: ${e.message}`);
   }
