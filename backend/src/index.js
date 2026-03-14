@@ -761,6 +761,94 @@ app.post("/api/agent/publish-set", authMiddleware, async (req, res) => {
   }
 });
 
+// ===== Edit/Delete Skills (auth required, owner only) =====
+
+app.put("/api/skills/:id", authMiddleware, async (req, res) => {
+  try {
+    const doc = await db.collection("skills").doc(req.params.id).get();
+    if (!doc.exists) return res.status(404).json({ error: "Skill not found" });
+    if (doc.data().author !== req.user.username) return res.status(403).json({ error: "自分のスキルのみ編集できます" });
+
+    const { name, name_en, description, description_ja, icon, category, rarity, tags, agents, repo, content, visibility } = req.body;
+    const updates = { updatedAt: Firestore.Timestamp.now() };
+    if (name !== undefined) updates.name = name;
+    if (name_en !== undefined) updates.name_en = name_en;
+    if (description !== undefined) updates.description = description;
+    if (description_ja !== undefined) updates.description_ja = description_ja;
+    if (icon !== undefined) updates.icon = icon;
+    if (category !== undefined) updates.category = category;
+    if (rarity !== undefined) updates.rarity = rarity;
+    if (tags !== undefined) updates.tags = tags;
+    if (agents !== undefined) updates.agents = agents;
+    if (repo !== undefined) updates.repo = repo;
+    if (content !== undefined) updates.content = content;
+    if (visibility !== undefined) updates.visibility = visibility;
+
+    await db.collection("skills").doc(req.params.id).update(updates);
+    const updated = await db.collection("skills").doc(req.params.id).get();
+    res.json({ ok: true, id: req.params.id, ...updated.data() });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete("/api/skills/:id", authMiddleware, async (req, res) => {
+  try {
+    const doc = await db.collection("skills").doc(req.params.id).get();
+    if (!doc.exists) return res.status(404).json({ error: "Skill not found" });
+    if (doc.data().author !== req.user.username) return res.status(403).json({ error: "自分のスキルのみ削除できます" });
+
+    await db.collection("skills").doc(req.params.id).delete();
+    // Also delete related reviews
+    const reviewSnap = await db.collection("reviews").where("targetId", "==", req.params.id).get();
+    const batch = db.batch();
+    reviewSnap.docs.forEach(d => batch.delete(d.ref));
+    if (!reviewSnap.empty) await batch.commit();
+
+    res.json({ ok: true, deleted: req.params.id });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ===== Edit/Delete Sets (auth required, owner only) =====
+
+app.put("/api/sets/:id", authMiddleware, async (req, res) => {
+  try {
+    const doc = await db.collection("skillsets").doc(req.params.id).get();
+    if (!doc.exists) return res.status(404).json({ error: "Set not found" });
+    if (doc.data().author !== req.user.username) return res.status(403).json({ error: "自分のセットのみ編集できます" });
+
+    const { name, description, skills, icon, agents, visibility } = req.body;
+    const updates = { updatedAt: Firestore.Timestamp.now() };
+    if (name !== undefined) updates.name = name;
+    if (description !== undefined) updates.description = description;
+    if (skills !== undefined) updates.skills = skills;
+    if (icon !== undefined) updates.icon = icon;
+    if (agents !== undefined) updates.agents = agents;
+    if (visibility !== undefined) updates.visibility = visibility;
+
+    await db.collection("skillsets").doc(req.params.id).update(updates);
+    const updated = await db.collection("skillsets").doc(req.params.id).get();
+    res.json({ ok: true, id: req.params.id, ...updated.data() });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete("/api/sets/:id", authMiddleware, async (req, res) => {
+  try {
+    const doc = await db.collection("skillsets").doc(req.params.id).get();
+    if (!doc.exists) return res.status(404).json({ error: "Set not found" });
+    if (doc.data().author !== req.user.username) return res.status(403).json({ error: "自分のセットのみ削除できます" });
+
+    await db.collection("skillsets").doc(req.params.id).delete();
+    res.json({ ok: true, deleted: req.params.id });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ===== Categories =====
 app.get("/api/categories", async (req, res) => {
   res.json({

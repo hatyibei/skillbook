@@ -987,6 +987,7 @@ function mapApiSkill(s) {
     category: s.category || "development",
     repo: s.repo || "",
     content: s.content || "",
+    author: s.author || "",
     createdAt: s.createdAt || null,
   };
 }
@@ -1028,6 +1029,10 @@ function renderAll() {
   renderCategories();
   renderSkills();
   renderSetCatalog();
+  buildTagIndex();
+  renderTagSuggestions();
+  renderSkillPicker();
+  updateSetPreview();
 }
 
 // ===== Toast =====
@@ -1265,8 +1270,12 @@ function getFilteredSkills() {
     if (rarityF && s.rarity !== rarityF) return false;
     if (query) {
       const q = query.toLowerCase();
-      return s.name.toLowerCase().includes(q) || (s.desc||"").toLowerCase().includes(q) ||
-        (s.desc_en||"").toLowerCase().includes(q) || s.tags.some(t => t.toLowerCase().includes(q));
+      // Exact includes first
+      if (s.name.toLowerCase().includes(q) || (s.desc||"").toLowerCase().includes(q) ||
+        (s.desc_en||"").toLowerCase().includes(q) || s.tags.some(t => t.toLowerCase().includes(q)) ||
+        (s.id||"").toLowerCase().includes(q) || (s.name_en||"").toLowerCase().includes(q)) return true;
+      // Fuzzy fallback
+      return fuzzyMatch(q, s.name) || fuzzyMatch(q, s.id) || s.tags.some(t => fuzzyMatch(q, t));
     }
     return true;
   });
@@ -1694,7 +1703,7 @@ function toggleSkillEmojiPicker() {
 function toggleSetEmojiPicker() {
   const el = document.getElementById("setEmojiPicker");
   if (el.style.display === "none" || !el.style.display) {
-    renderDropdownEmojiPicker("setEmojiPicker", "setIconBtn", v => { pickedSetIcon = v; });
+    renderDropdownEmojiPicker("setEmojiPicker", "setIconBtn", v => { pickedSetIcon = v; updateSetPreview(); });
   } else { el.style.display = "none"; }
 }
 
@@ -1913,6 +1922,31 @@ function updateSelectedInfo() {
     return s ? s.icon + s.name : id;
   });
   document.getElementById("selectedSkillsList").textContent = names.join(", ");
+  updateSetPreview();
+}
+
+// ===== Live Set Preview =====
+function updateSetPreview() {
+  const card = document.getElementById("setPreviewCard");
+  if (!card) return;
+  const name = document.getElementById("createName")?.value.trim() || "セット名";
+  const desc = document.getElementById("createDesc")?.value.trim() || "説明がここに表示されます";
+  const icon = pickedSetIcon || "📦";
+
+  const skillNames = Array.from(selectedSkills).map(id => {
+    const s = SKILLS_DATA.find(sk => sk.id === id);
+    return s ? `<span class="setcat-skill">${s.icon} ${s.name}</span>` : `<span class="setcat-skill">${id}</span>`;
+  });
+
+  card.innerHTML = `
+    <div class="setcat-header"><span class="setcat-name">${icon} ${name}</span></div>
+    <div class="setcat-meta"><span class="set-count">${selectedSkills.size} SKILLS</span></div>
+    <div class="setcat-desc" style="color:var(--dim)">${desc}</div>
+    <div class="setcat-skills">${skillNames.join("")}</div>
+    <div class="setcat-footer" style="margin-top:8px">
+      <span style="font-size:10px;color:var(--blue)">by ${currentUser?.username || "you"}</span>
+      <span style="font-size:9px;color:var(--dim)">📋 コマンドコピー</span>
+    </div>`;
 }
 
 async function createNewSet() {
@@ -1947,10 +1981,11 @@ async function createNewSet() {
     showToast("スキルセット「" + name + "」を登録しました！");
     document.getElementById("createName").value = "";
     document.getElementById("createDesc").value = "";
-    pickedSetIcon = "";
-    document.getElementById("setIconPreview").textContent = "未選択";
+    pickedSetIcon = "📦";
+    document.getElementById("setIconBtn").textContent = "📦";
     selectedSkills.clear();
     renderSkillPicker();
+    updateSetPreview();
     loadFromApi();
   } catch (e) {
     showToast("セット登録に失敗しました...");
@@ -2031,7 +2066,9 @@ async function renderMyPage() {
   </div>
 </div>
 
-<div class="sec-t" style="margin-bottom:12px">📦 マイスキルセット</div>
+<div class="sec-t" style="margin-bottom:12px">⚔️ マイスキル</div>
+<div id="mySkills"><div class="no-reviews">読み込み中...</div></div>
+<div class="sec-t" style="margin-top:24px;margin-bottom:12px">📦 マイスキルセット</div>
 <div id="mySets"><div class="no-reviews">読み込み中...</div></div>
 <div class="sec-t" style="margin-top:24px;margin-bottom:12px">📝 マイレビュー</div>
 <div id="myReviews"><div class="no-reviews">読み込み中...</div></div>
@@ -2051,12 +2088,35 @@ async function renderMyPage() {
     const sets = setsData.sets || [];
     const reviews = reviewsData.reviews || [];
 
+    // My Skills — filter from SKILLS_DATA by author
+    const mySkills = SKILLS_DATA.filter(s => s.author === currentUser.username);
+    document.getElementById("mySkills").innerHTML = mySkills.length === 0
+      ? '<div class="no-reviews">まだスキルがありません — 「🆕 スキル登録」で作ろう！</div>'
+      : mySkills.map(s => `<div class="set-card pb" style="margin-bottom:8px">
+          <div class="set-header" style="display:flex;justify-content:space-between;align-items:center">
+            <span class="set-name" style="cursor:pointer" onclick="openModal(SKILLS_DATA.find(sk=>sk.id==='${s.id}'))">${s.icon} ${s.name}</span>
+            <div style="display:flex;gap:4px;align-items:center">
+              <span class="rarity r-${(s.rarity||'COMMON')[0].toLowerCase()}" style="font-size:8px">${s.rarity}</span>
+              <button onclick="deleteMySkill('${s.id}')" style="background:none;border:1px solid var(--red);color:var(--red);padding:2px 8px;border-radius:2px;font-size:10px;cursor:pointer;font-family:inherit;transition:.15s" onmouseover="this.style.background='rgba(240,64,96,.15)'" onmouseout="this.style.background='none'">🗑 削除</button>
+            </div>
+          </div>
+        </div>`).join("");
+
     document.getElementById("mySetCount").textContent = sets.length;
     document.getElementById("myReviewCount").textContent = reviews.length;
 
     document.getElementById("mySets").innerHTML = sets.length === 0
       ? '<div class="no-reviews">まだセットがありません — 「✏️ セット作成」で作ろう！</div>'
-      : sets.map(s => '<div class="set-card pb" style="margin-bottom:8px"><div class="set-header"><span class="set-name">'+(s.icon||"📦")+' '+s.name+'</span><span class="set-count">'+(s.skills||[]).length+' SKILLS</span></div></div>').join("");
+      : sets.map(s => `<div class="set-card pb" style="margin-bottom:8px">
+          <div class="set-header" style="display:flex;justify-content:space-between;align-items:center">
+            <span class="set-name">${s.icon||"📦"} ${s.name}</span>
+            <div style="display:flex;gap:4px;align-items:center">
+              <span class="set-count">${(s.skills||[]).length} SKILLS</span>
+              <button onclick="deleteMySet('${s.id||s.name}')" style="background:none;border:1px solid var(--red);color:var(--red);padding:2px 8px;border-radius:2px;font-size:10px;cursor:pointer;font-family:inherit;transition:.15s" onmouseover="this.style.background='rgba(240,64,96,.15)'" onmouseout="this.style.background='none'">🗑 削除</button>
+            </div>
+          </div>
+          ${s.description ? '<div style="padding:0 18px 10px;font-size:11px;color:var(--dim)">'+s.description+'</div>' : ''}
+        </div>`).join("");
 
     document.getElementById("myReviews").innerHTML = reviews.length === 0
       ? '<div class="no-reviews">まだレビューがありません — スキルの詳細からレビューを書こう！</div>'
@@ -2208,10 +2268,92 @@ document.getElementById("submitReview").onclick = async () => {
   btn.textContent = "レビュー投稿";
 };
 
+// ===== Delete Skill/Set =====
+async function deleteMySkill(id) {
+  if (!confirm("スキル「" + id + "」を削除しますか？ この操作は元に戻せません。")) return;
+  try {
+    const res = await fetch(API_BASE + "/api/skills/" + id, {
+      method: "DELETE", headers: { "Authorization": "Bearer " + authToken }
+    });
+    if (!res.ok) { const d = await res.json(); showToast(d.error || "削除に失敗しました"); return; }
+    showToast("スキル「" + id + "」を削除しました");
+    loadFromApi();
+    setTimeout(() => renderMyPage(), 1000);
+  } catch(e) { showToast("エラーが発生しました"); }
+}
+
+async function deleteMySet(id) {
+  if (!confirm("セット「" + id + "」を削除しますか？ この操作は元に戻せません。")) return;
+  try {
+    const res = await fetch(API_BASE + "/api/sets/" + id, {
+      method: "DELETE", headers: { "Authorization": "Bearer " + authToken }
+    });
+    if (!res.ok) { const d = await res.json(); showToast(d.error || "削除に失敗しました"); return; }
+    showToast("セット「" + id + "」を削除しました");
+    loadFromApi();
+    setTimeout(() => renderMyPage(), 1000);
+  } catch(e) { showToast("エラーが発生しました"); }
+}
+
+// ===== Fuzzy Search =====
+function fuzzyMatch(query, text) {
+  if (!query || !text) return false;
+  const q = query.toLowerCase();
+  const t = text.toLowerCase();
+  if (t.includes(q)) return true;
+  // Character-by-character fuzzy match
+  let qi = 0;
+  for (let ti = 0; ti < t.length && qi < q.length; ti++) {
+    if (t[ti] === q[qi]) qi++;
+  }
+  return qi === q.length;
+}
+
+// ===== Tag Suggestions =====
+let allTags = [];
+function buildTagIndex() {
+  const tagMap = {};
+  SKILLS_DATA.forEach(s => (s.tags||[]).forEach(t => {
+    const key = t.toLowerCase();
+    tagMap[key] = tagMap[key] || { label: t, count: 0 };
+    tagMap[key].count++;
+  }));
+  allTags = Object.values(tagMap).sort((a,b) => b.count - a.count);
+}
+
+function renderTagSuggestions() {
+  let el = document.getElementById("tagSuggestions");
+  if (!el) {
+    const searchWrap = document.querySelector(".search");
+    if (!searchWrap) return;
+    el = document.createElement("div");
+    el.id = "tagSuggestions";
+    el.style.cssText = "display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;max-width:600px;margin-left:auto;margin-right:auto";
+    searchWrap.parentNode.insertBefore(el, searchWrap.nextSibling);
+  }
+  const top = allTags.slice(0, 12);
+  el.innerHTML = top.map(t =>
+    `<span style="font-size:10px;padding:3px 8px;background:var(--card);border:1px solid var(--border);border-radius:2px;color:var(--dim);cursor:pointer;transition:.15s" onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--gold)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--dim)'" onclick="document.getElementById('searchInput').value='${t.label}';renderSkills()">${t.label} <span style="opacity:.5">(${t.count})</span></span>`
+  ).join("");
+}
+
+// ===== Set Preview Event Listeners =====
+function initSetPreviewListeners() {
+  const nameEl = document.getElementById("createName");
+  const descEl = document.getElementById("createDesc");
+  if (nameEl) nameEl.addEventListener("input", updateSetPreview);
+  if (descEl) descEl.addEventListener("input", updateSetPreview);
+}
+
 // Init — load from API, fallback to hardcoded
 loadUser();
 loadFromApi();
+
+// Enhanced search with fuzzy matching
 document.getElementById("searchInput").addEventListener("input", () => renderSkills());
+
+// Init set preview listeners after DOM ready
+setTimeout(() => { initSetPreviewListeners(); }, 100);
 </script>
 </body>
 </html>
