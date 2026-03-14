@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/hatyibei/skillbook/main/docs/logo.png" alt="スキルの書" width="120">
+  <img src="https://raw.githubusercontent.com/hatyibei/skillbook/main/docs/logo.jpg" alt="スキルの書" width="120">
 </p>
 
 <h1 align="center">📖 スキルの書 — The SkillBook</h1>
@@ -41,14 +41,24 @@ AIエージェント（Claude Code, Cursor, Copilot...）が増えるなか、**
 
 ## クイックスタート
 
+インストール不要。お好みのパッケージマネージャで即実行。
+
 ```bash
-# インストール不要。npxで即実行。
+# npm
 npx skillbook init claude-code
 
+# pnpm
+pnpm dlx skillbook init claude-code
+
+# bun
+bunx skillbook init claude-code
+```
+
+```bash
 # カタログからスキルを検索
 npx skillbook search "コードレビュー"
 
-# スキルを装備
+# スキルを取得して装備
 npx skillbook get code-review
 npx skillbook get design-army
 
@@ -59,6 +69,18 @@ npx skillbook equip dev-set
 # 別の業務に切り替え
 npx skillbook unequip
 npx skillbook equip sales-kit
+```
+
+グローバルインストールする場合:
+
+```bash
+npm install -g skillbook    # npm
+pnpm add -g skillbook       # pnpm
+bun add -g skillbook        # bun
+
+# 以降 npx なしで実行可能
+skillbook search "テスト"
+skillbook equip dev-set
 ```
 
 ## 仕組み
@@ -74,38 +96,44 @@ npx skillbook equip sales-kit
   design-army → ~/.skillbook/store/design-army
 ```
 
-`equip` はシンボリックリンクの張り替えだけ。軽量で高速。
+`equip` はシンボリックリンクの張り替えだけ。軽量で高速。バックエンド不要のローカル動作。
 
 ## コマンド一覧
 
 | コマンド | 説明 |
 |---------|------|
-| `init [agent]` | プロジェクト初期化 |
+| `init [agent]` | プロジェクト初期化（default: claude-code） |
 | `search <query>` | カタログからスキル検索 |
-| `get <name>` | スキルをインストール |
-| `add <name>` | 新規スキルを追加 |
-| `import <path\|url>` | ローカル/Gitからインポート |
+| `get <name>` | カタログからスキルを取得 |
+| `get-set <name>` | カタログからスキルセットを取得 |
+| `add <name>` | 新規スキルをローカルに追加 |
+| `import <path\|url>` | ローカル/Gitからスキルをインポート |
+| `install <npm-pkg>` | npmパッケージからスキルをインストール |
 | `create <set>` | スキルセットを作成 |
-| `equip <set>` | スキルセットを装備 |
+| `equip <set>` | スキルセットを装備（アクティブ化） |
 | `unequip` | 装備解除 |
-| `fork <set>` | セットをフォーク |
+| `fork <set>` | スキルセットをフォーク |
+| `agent [name]` | エージェント切替 |
 | `publish <set>` | npmパッケージとして公開 |
-| `list` | 一覧表示 |
-| `status` | 現在の状態 |
+| `login` | SkillBook アカウントにログイン |
+| `browse` | Webカタログをブラウザで開く |
+| `list` / `ls` | スキル・セット一覧 |
+| `status` / `st` | 現在の状態表示 |
+| `help` | ヘルプ表示 |
 
 ## 対応エージェント
 
-| エージェント | ステータス |
-|-------------|----------|
-| Claude Code | ✅ フルサポート |
-| Cursor | ✅ フルサポート |
-| GitHub Copilot | ✅ フルサポート |
-| Codex | ✅ サポート |
-| Gemini CLI | ✅ サポート |
-| Windsurf | ✅ サポート |
-| Goose | ✅ サポート |
-| Kiro | ✅ サポート |
-| Roo Code | ✅ サポート |
+| エージェント | スキルディレクトリ | ステータス |
+|-------------|------------------|----------|
+| Claude Code | `.claude/skills/` | ✅ フルサポート |
+| Cursor | `.cursor/skills/` | ✅ フルサポート |
+| GitHub Copilot | `.github/copilot/skills/` | ✅ フルサポート |
+| Codex | `.codex/skills/` | ✅ サポート |
+| Gemini CLI | `.gemini/skills/` | ✅ サポート |
+| Windsurf | `.windsurf/skills/` | ✅ サポート |
+| Goose | `.goose/skills/` | ✅ サポート |
+| Kiro | `.kiro/skills/` | ✅ サポート |
+| Roo Code | `.roo/skills/` | ✅ サポート |
 
 ## 三層アーキテクチャ
 
@@ -127,7 +155,7 @@ npx skillbook equip sales-kit
 
 ## Agent API
 
-AIエージェントが直接スキルを検索・取得できるAPI。
+AIエージェントが直接スキルを検索・取得できるAPI。LLMのコンテキストウィンドウに最適化されたJSON形式。
 
 ```bash
 # スキル検索
@@ -138,6 +166,12 @@ curl https://api.skillbooks.dev/api/agent/skill/tdd-test-generator
 
 # おすすめスキル
 curl https://api.skillbooks.dev/api/agent/discover?agent=claude-code
+
+# スキル公開（要API key）
+curl -X POST https://api.skillbooks.dev/api/agent/publish \
+  -H "Authorization: Bearer sk_..." \
+  -H "Content-Type: application/json" \
+  -d '{"name":"my-skill","description":"...","content":"# My Skill\n..."}'
 ```
 
 ## セルフホスト
@@ -149,18 +183,28 @@ cd skillbook
 # バックエンド（要 GCP + Firestore）
 cd backend && npm install && npm start
 
-# Web
+# Web（静的ファイル配信）
 cd web && npx serve .
+```
+
+## プロジェクト構成
+
+```
+skillbook/
+  cli/            ← CLI ツール（Node.js / npm パッケージ）
+  backend/        ← API サーバー（Express + Firestore on Cloud Run）
+  web/            ← Web カタログ（シングルHTML + nginx on Cloud Run）
+  docs/           ← ドキュメント・画像素材
 ```
 
 ## Contributing
 
-PRやIssue歓迎です！スキルの追加は特に歓迎。
+PRやIssue歓迎です！スキルの追加は特に大歓迎。
 
 ```bash
 # 新しいスキルを追加するには
 npx skillbook add my-awesome-skill
-# SKILL.mdを編集
+# SKILL.mdを編集して内容を書く
 # PRを送る
 ```
 
