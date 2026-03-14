@@ -273,6 +273,11 @@ body{padding-top:42px}
 .equip-step{background:var(--card);padding:8px 14px;border-radius:2px;border:1px solid var(--border);text-align:center}
 .equip-step .step-icon{font-size:20px;display:block;margin-bottom:2px}
 .equip-arrow{color:var(--gold);font-size:16px}
+
+/* Responsive */
+@media(max-width:768px){
+  #addSkillLayout,#createSetLayout{grid-template-columns:1fr!important}
+}
 </style>
 </head>
 <body>
@@ -511,62 +516,116 @@ body{padding-top:42px}
 <div class="page" id="page-addskill">
 <section class="sec">
   <div class="sec-t">🗡️ スキル登録</div>
-  <div class="sec-d">新しいスキルをカタログに登録しよう</div>
+  <div class="sec-d">新しいスキルをカタログに登録しよう — 日本語＋英語の2層構造</div>
 
+  <div style="display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start" id="addSkillLayout">
+  <!-- Form -->
   <div style="background:var(--panel);padding:24px;border-radius:2px" class="pg">
+    <div style="font-size:13px;color:var(--bright);margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.05)">📝 基本情報</div>
+
+    <div style="display:grid;grid-template-columns:1fr auto;gap:12px">
+      <div class="form-group">
+        <label class="form-label">🇯🇵 スキル名（日本語）</label>
+        <input class="form-input" id="skillName" placeholder="例: コードレビューの極意" oninput="updateSkillPreview()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">アイコン</label>
+        <div style="position:relative">
+          <button class="form-input" id="skillIconBtn" onclick="toggleSkillEmojiPicker()" style="width:48px;height:42px;text-align:center;font-size:20px;cursor:pointer;padding:0">⚔️</button>
+          <div class="emoji-picker" id="skillEmojiPicker" style="display:none;position:absolute;right:0;top:48px;width:280px;z-index:100;max-height:160px"></div>
+        </div>
+      </div>
+    </div>
+
     <div class="form-group">
-      <label class="form-label">スキル名（日本語OK）</label>
-      <input class="form-input" id="skillName" placeholder="例: コードレビューの極意">
+      <label class="form-label">🇺🇸 English Name（IDに自動変換）</label>
+      <input class="form-input" id="skillNameEn" placeholder="例: Code Review Master" oninput="updateSkillId();updateSkillPreview()">
+      <div style="font-size:10px;color:var(--dim);margin-top:3px">ID: <code id="skillIdPreview" style="color:var(--green)">—</code></div>
+    </div>
+
+    <div style="font-size:13px;color:var(--bright);margin:20px 0 12px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.05)">📖 説明（2言語）</div>
+
+    <div class="form-group">
+      <label class="form-label">🇯🇵 日本語の説明</label>
+      <textarea class="form-input" id="skillDescJa" placeholder="日本語でスキルの説明を書こう。カードに表示されます。" rows="2" style="resize:vertical" oninput="updateSkillPreview()"></textarea>
     </div>
     <div class="form-group">
-      <label class="form-label">スキルID（英数字、ハイフン可）</label>
-      <input class="form-input" id="skillId" placeholder="例: code-review-master">
+      <label class="form-label">🇺🇸 English Description</label>
+      <textarea class="form-input" id="skillDescEn" placeholder="English description shown in modal and for international users" rows="2" style="resize:vertical" oninput="updateSkillPreview()"></textarea>
     </div>
-    <div class="form-group">
-      <label class="form-label">アイコンを選ぶ</label>
-      <div class="emoji-picker" id="skillEmojiPicker"></div>
-      <div style="font-size:11px;color:var(--dim);margin-top:4px">選択中: <span id="skillIconPreview">未選択</span></div>
+
+    <div style="font-size:13px;color:var(--bright);margin:20px 0 12px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.05)">⚙️ 分類・設定</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group">
+        <label class="form-label">カテゴリ</label>
+        <select class="form-input" id="skillCategory" onchange="updateSkillPreview()">
+          <option value="development">💻 開発</option>
+          <option value="data">📊 データ分析</option>
+          <option value="document">📝 ドキュメント</option>
+          <option value="design">🎨 デザイン</option>
+          <option value="business">💼 ビジネス</option>
+          <option value="devops">🔧 DevOps</option>
+          <option value="security">🔒 セキュリティ</option>
+          <option value="general">📦 その他</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">レアリティ</label>
+        <select class="form-input" id="skillRarity" onchange="updateSkillPreview()">
+          <option value="common">⚪ COMMON — 基本スキル</option>
+          <option value="rare" selected>🔵 RARE — 実用的</option>
+          <option value="epic">🟣 EPIC — 高度な専門</option>
+          <option value="legendary">🟡 LEGENDARY — 最高峰</option>
+        </select>
+      </div>
     </div>
+
     <div class="form-group">
-      <label class="form-label">説明</label>
-      <textarea class="form-input" id="skillDesc" placeholder="スキルの説明を書こう" rows="3" style="resize:vertical"></textarea>
-    </div>
-    <div class="form-group">
-      <label class="form-label">カテゴリ</label>
-      <select class="form-input" id="skillCategory">
-        <option value="development">💻 開発</option>
-        <option value="data">📊 データ分析</option>
-        <option value="document">📝 ドキュメント</option>
-        <option value="design">🎨 デザイン</option>
-        <option value="business">💼 ビジネス</option>
-        <option value="devops">🔧 DevOps</option>
-        <option value="security">🔒 セキュリティ</option>
-        <option value="general">📦 その他</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">レアリティ</label>
-      <select class="form-input" id="skillRarity">
-        <option value="common">⚪ COMMON</option>
-        <option value="rare">🔵 RARE</option>
-        <option value="epic">🟣 EPIC</option>
-        <option value="legendary">🟡 LEGENDARY</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">対応エージェント</label>
+      <label class="form-label">対応エージェント（複数選択OK）</label>
       <div id="agentCheckboxes" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px"></div>
     </div>
+
     <div class="form-group">
       <label class="form-label">タグ（カンマ区切り）</label>
-      <input class="form-input" id="skillTags" placeholder="例: TypeScript, セキュリティ, React">
+      <input class="form-input" id="skillTags" placeholder="例: TypeScript, セキュリティ, React" oninput="updateSkillPreview()">
     </div>
+
     <div class="form-group">
       <label class="form-label">GitHubリポジトリURL（任意）</label>
       <input class="form-input" id="skillRepo" placeholder="例: https://github.com/user/skill-name">
     </div>
-    <button class="submit-btn" onclick="registerSkill()">スキルを登録する</button>
-    <div style="font-size:11px;color:var(--dim);margin-top:10px">※ 冒険者登録が必要です。</div>
+
+    <div class="form-group">
+      <label class="form-label">SKILL.md 内容（任意 — スキルの指示本文）</label>
+      <textarea class="form-input" id="skillContent" placeholder="# Code Review Master&#10;&#10;You are an expert code reviewer...&#10;&#10;## Instructions&#10;- Check for security issues&#10;- Review error handling" rows="5" style="resize:vertical;font-size:12px"></textarea>
+      <div style="font-size:10px;color:var(--dim);margin-top:3px">Markdownで書けます。エージェントに読み込まれる指示本文。</div>
+    </div>
+
+    <button class="submit-btn" style="width:100%" onclick="registerSkill()">🗡️ スキルを登録する</button>
+    <div style="font-size:11px;color:var(--dim);margin-top:10px">※ 冒険者登録が必要です。日本語名 + English Name は必須。</div>
+  </div>
+
+  <!-- Live Preview -->
+  <div>
+    <div style="font-size:12px;color:var(--gold);margin-bottom:8px;font-weight:bold">👁️ ライブプレビュー</div>
+    <div id="skillPreviewCard" class="card pb" style="cursor:default">
+      <div class="card-h"><span class="card-icon">⚔️</span><span class="rarity r-r">★ RARE</span></div>
+      <div class="card-name">スキル名</div>
+      <div style="font-family:'Press Start 2P',monospace;font-size:7px;color:var(--dim);margin-bottom:6px">SKILL-NAME</div>
+      <div class="card-desc-ja" style="color:var(--dim)">日本語の説明がここに表示されます</div>
+      <div class="card-desc-en">English description appears here</div>
+      <div class="tags"></div>
+      <div class="card-f">
+        <div class="agents"><span class="ab">claude-code</span></div>
+        <div class="card-stats"><span class="rating">★0.0</span><span class="installs">0</span></div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--dim);margin-top:8px;line-height:1.6">
+      ↑ フォームを入力するとリアルタイムで更新されます。<br>
+      登録後、カタログに即反映されます。
+    </div>
+  </div>
   </div>
 </section>
 </div>
@@ -577,27 +636,47 @@ body{padding-top:42px}
   <div class="sec-t">✏️ スキルセット作成</div>
   <div class="sec-d">カタログのスキルを組み合わせてオリジナルセットを作ろう</div>
 
+  <div style="display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:start" id="createSetLayout">
   <div style="background:var(--panel);padding:24px;border-radius:2px" class="pg">
-    <div class="form-group">
-      <label class="form-label">セット名（英数字、ハイフン可）</label>
-      <input class="form-input" id="createName" placeholder="例: my-frontend-kit">
+    <div style="display:grid;grid-template-columns:1fr auto;gap:12px">
+      <div class="form-group">
+        <label class="form-label">セット名（英数字、ハイフン可）</label>
+        <input class="form-input" id="createName" placeholder="例: my-frontend-kit">
+      </div>
+      <div class="form-group">
+        <label class="form-label">アイコン</label>
+        <div style="position:relative">
+          <button class="form-input" id="setIconBtn" onclick="toggleSetEmojiPicker()" style="width:48px;height:42px;text-align:center;font-size:20px;cursor:pointer;padding:0">📦</button>
+          <div class="emoji-picker" id="setEmojiPicker" style="display:none;position:absolute;right:0;top:48px;width:280px;z-index:100;max-height:160px"></div>
+        </div>
+      </div>
     </div>
     <div class="form-group">
-      <label class="form-label">説明</label>
+      <label class="form-label">説明（日本語OK）</label>
       <input class="form-input" id="createDesc" placeholder="例: フロントエンド開発に必要なスキルを集めたセット">
     </div>
     <div class="form-group">
-      <label class="form-label">アイコンを選ぶ</label>
-      <div class="emoji-picker" id="setEmojiPicker"></div>
-      <div style="font-size:11px;color:var(--dim);margin-top:4px">選択中: <span id="setIconPreview">未選択</span></div>
-    </div>
-    <div class="form-group">
       <label class="form-label">スキルを選択（クリックで追加/削除）</label>
+      <div style="margin-bottom:6px">
+        <input class="form-input" id="skillPickerSearch" placeholder="🔍 スキルを検索..." oninput="filterSkillPicker()" style="font-size:12px;padding:8px 12px">
+      </div>
       <div class="skill-picker" id="skillPicker"></div>
     </div>
-    <div id="selectedSkillsInfo" style="font-size:11px;color:var(--dim);margin-bottom:12px">選択中: 0個</div>
-    <button class="submit-btn" id="createSetBtn" onclick="createNewSet()">セットを登録する</button>
-    <div style="font-size:11px;color:var(--dim);margin-top:10px">※ 冒険者登録が必要です。登録後、あなたの名前でセットが公開されます。</div>
+    <div id="selectedSkillsInfo" style="font-size:12px;color:var(--gold);margin-bottom:12px;font-weight:bold">選択中: 0個</div>
+    <button class="submit-btn" style="width:100%" id="createSetBtn" onclick="createNewSet()">📦 セットを登録する</button>
+    <div style="font-size:11px;color:var(--dim);margin-top:10px">※ 冒険者登録が必要です。登録後、「📦 セット」タブに公開されます。</div>
+  </div>
+
+  <!-- Set Preview -->
+  <div>
+    <div style="font-size:12px;color:var(--gold);margin-bottom:8px;font-weight:bold">👁️ セットプレビュー</div>
+    <div class="setcat-card pb" style="cursor:default" id="setPreviewCard">
+      <div class="setcat-header"><span class="setcat-name">📦 セット名</span></div>
+      <div class="setcat-meta"><span class="set-count">0 SKILLS</span></div>
+      <div class="setcat-desc" style="color:var(--dim)">説明がここに表示されます</div>
+      <div class="setcat-skills" id="setPreviewSkills"></div>
+    </div>
+  </div>
   </div>
 </section>
 </div>
@@ -1207,12 +1286,11 @@ function switchPage(page) {
   if (tabEl) tabEl.classList.add("on");
   if (page === "sets") renderSetCatalog();
   if (page === "addskill") {
-    renderEmojiPicker("skillEmojiPicker", "skillIconPreview", v => { pickedSkillIcon = v; });
     renderAgentCheckboxes();
+    updateSkillPreview();
   }
   if (page === "create") {
     renderSkillPicker();
-    renderEmojiPicker("setEmojiPicker", "setIconPreview", v => { pickedSetIcon = v; });
   }
   if (page === "mypage") renderMyPage();
 }
@@ -1300,9 +1378,9 @@ async function registerUser() {
 }
 
 // ===== Emoji Picker =====
-const EMOJI_LIST = ["⚔️","🗡️","🛡️","🏹","🔮","👑","📜","⚗️","💎","🔥","⚡","🌟","🎯","🚀","💣","🧪","🔧","🔒","📊","📈","📝","📋","💻","🖥️","🤖","🧠","🎨","🎭","🎮","🎲","🏗️","🔍","💡","📦","📚","🗂️","💼","🧰","🛠️","⚙️","🔗","🧩","🎵","📡","🌐","🕹️","🦆","🐉","🦅","🐺"];
-let pickedSkillIcon = "";
-let pickedSetIcon = "";
+const EMOJI_LIST = ["⚔️","🗡️","🛡️","🏹","🔮","👑","📜","⚗️","💎","🔥","⚡","🌟","🎯","🚀","💣","🧪","🔧","🔒","📊","📈","📝","📋","💻","🖥️","🤖","🧠","🎨","🎭","🎮","🎲","🏗️","🔍","💡","📦","📚","🗂️","💼","🧰","🛠️","⚙️","🔗","🧩","🎵","📡","🌐","🕹️","🦆","🐉","🦅","🐺","✅","👀","🌳","📖","🔄","🔌","🗄️","📁","🤔","💬","🐙","📌","🐛","💾","🐘","💰","👔","📢","📱","✍️"];
+let pickedSkillIcon = "⚔️";
+let pickedSetIcon = "📦";
 
 function renderEmojiPicker(containerId, previewId, setter) {
   const el = document.getElementById(containerId);
@@ -1311,13 +1389,109 @@ function renderEmojiPicker(containerId, previewId, setter) {
     '<span class="emoji-opt" data-emoji="'+e+'">'+e+'</span>'
   ).join("");
   el.querySelectorAll(".emoji-opt").forEach(opt => {
-    opt.onclick = () => {
+    opt.onclick = (ev) => {
+      ev.stopPropagation();
       el.querySelectorAll(".emoji-opt").forEach(o => o.classList.remove("picked"));
       opt.classList.add("picked");
       const emoji = opt.dataset.emoji;
       setter(emoji);
-      document.getElementById(previewId).textContent = emoji;
+      if (previewId) document.getElementById(previewId).textContent = emoji;
+      // Close dropdown if it's the dropdown style
+      if (el.style.position === "absolute") el.style.display = "none";
     };
+  });
+}
+
+function renderDropdownEmojiPicker(containerId, btnId, setter) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.style.display = "flex";
+  el.innerHTML = EMOJI_LIST.map(e =>
+    '<span class="emoji-opt" data-emoji="'+e+'">'+e+'</span>'
+  ).join("");
+  el.querySelectorAll(".emoji-opt").forEach(opt => {
+    opt.onclick = (ev) => {
+      ev.stopPropagation();
+      el.querySelectorAll(".emoji-opt").forEach(o => o.classList.remove("picked"));
+      opt.classList.add("picked");
+      const emoji = opt.dataset.emoji;
+      setter(emoji);
+      document.getElementById(btnId).textContent = emoji;
+      el.style.display = "none";
+      updateSkillPreview();
+    };
+  });
+}
+
+function toggleSkillEmojiPicker() {
+  const el = document.getElementById("skillEmojiPicker");
+  if (el.style.display === "none" || !el.style.display) {
+    renderDropdownEmojiPicker("skillEmojiPicker", "skillIconBtn", v => { pickedSkillIcon = v; });
+  } else { el.style.display = "none"; }
+}
+
+function toggleSetEmojiPicker() {
+  const el = document.getElementById("setEmojiPicker");
+  if (el.style.display === "none" || !el.style.display) {
+    renderDropdownEmojiPicker("setEmojiPicker", "setIconBtn", v => { pickedSetIcon = v; });
+  } else { el.style.display = "none"; }
+}
+
+// Close dropdowns on outside click
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("#skillEmojiPicker") && !e.target.closest("#skillIconBtn")) {
+    const el = document.getElementById("skillEmojiPicker");
+    if (el) el.style.display = "none";
+  }
+  if (!e.target.closest("#setEmojiPicker") && !e.target.closest("#setIconBtn")) {
+    const el = document.getElementById("setEmojiPicker");
+    if (el) el.style.display = "none";
+  }
+});
+
+// ===== Auto ID from English Name =====
+function updateSkillId() {
+  const en = document.getElementById("skillNameEn").value.trim();
+  const id = en.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  document.getElementById("skillIdPreview").textContent = id || "—";
+}
+
+// ===== Live Preview =====
+function updateSkillPreview() {
+  const card = document.getElementById("skillPreviewCard");
+  if (!card) return;
+  const name = document.getElementById("skillName").value || "スキル名";
+  const nameEn = (document.getElementById("skillNameEn").value || "SKILL-NAME").toUpperCase();
+  const descJa = document.getElementById("skillDescJa")?.value || "日本語の説明がここに表示されます";
+  const descEn = document.getElementById("skillDescEn")?.value || "English description appears here";
+  const rarity = (document.getElementById("skillRarity").value || "rare").toUpperCase();
+  const tags = document.getElementById("skillTags").value.split(",").map(t => t.trim()).filter(Boolean);
+  const icon = pickedSkillIcon || "⚔️";
+
+  const rc = {LEGENDARY:"r-l",EPIC:"r-e",RARE:"r-r",COMMON:"r-c"};
+  const bc = {LEGENDARY:"pg",EPIC:"pb",RARE:"pb",COMMON:"pb"};
+  card.className = "card " + (bc[rarity]||"pb");
+  card.style.cursor = "default";
+  card.innerHTML = `
+    <div class="card-h"><span class="card-icon">${icon}</span><span class="rarity ${rc[rarity]||'r-c'}">★ ${rarity}</span></div>
+    <div class="card-name">${name}</div>
+    <div style="font-family:'Press Start 2P',monospace;font-size:7px;color:var(--dim);margin-bottom:6px">${nameEn}</div>
+    <div class="card-desc-ja">${descJa}</div>
+    <div class="card-desc-en">${descEn}</div>
+    <div class="tags">${tags.map(t=>'<span class="tag">'+t+'</span>').join("")}</div>
+    <div class="card-f">
+      <div class="agents">${Array.from(selectedAgents).map(a=>'<span class="ab">'+a+'</span>').join("")}</div>
+      <div class="card-stats"><span class="rating">★0.0</span><span class="installs">0</span></div>
+    </div>
+  `;
+}
+
+// ===== Skill Picker Search =====
+function filterSkillPicker() {
+  const q = (document.getElementById("skillPickerSearch")?.value || "").toLowerCase();
+  document.querySelectorAll("#skillPicker .skill-pick").forEach(sp => {
+    const text = sp.textContent.toLowerCase();
+    sp.style.display = text.includes(q) ? "" : "none";
   });
 }
 
@@ -1345,35 +1519,40 @@ function renderAgentCheckboxes() {
 async function registerSkill() {
   if (!currentUser) { showSetupModal(); return; }
   const name = document.getElementById("skillName").value.trim();
-  const id = document.getElementById("skillId").value.trim();
-  const desc = document.getElementById("skillDesc").value.trim();
+  const nameEn = document.getElementById("skillNameEn").value.trim();
+  const id = nameEn.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const descJa = document.getElementById("skillDescJa").value.trim();
+  const descEn = document.getElementById("skillDescEn").value.trim();
   const category = document.getElementById("skillCategory").value;
   const rarity = document.getElementById("skillRarity").value;
   const tags = document.getElementById("skillTags").value.split(",").map(t => t.trim()).filter(Boolean);
   const repo = document.getElementById("skillRepo").value.trim();
+  const content = document.getElementById("skillContent")?.value.trim() || "";
 
-  if (!name) { showToast("スキル名を入力してね"); return; }
-  if (!id || !/^[a-zA-Z0-9_-]+$/.test(id)) { showToast("スキルIDは英数字・ハイフンで入力してね"); return; }
-  if (!pickedSkillIcon) { showToast("アイコンを選んでね"); return; }
+  if (!name) { showToast("🇯🇵 スキル名を入力してね"); return; }
+  if (!nameEn || !id) { showToast("🇺🇸 English Nameを入力してね（IDの自動生成に必要）"); return; }
+  if (!descJa) { showToast("🇯🇵 日本語の説明を入力してね"); return; }
 
   try {
     const res = await fetch(API_BASE + "/api/skills", {
       method: "POST", headers: {"Content-Type":"application/json"},
       body: JSON.stringify({
-        name, icon: pickedSkillIcon, description: desc, description_ja: desc,
+        name, name_en: nameEn.toUpperCase(), icon: pickedSkillIcon,
+        description: descEn, description_ja: descJa, content,
         category, rarity, tags, repo, agents: Array.from(selectedAgents),
         author: currentUser.username,
       }),
     });
     if (!res.ok) throw new Error("登録失敗");
     showToast("スキル「" + name + "」を登録しました！");
-    document.getElementById("skillName").value = "";
-    document.getElementById("skillId").value = "";
-    document.getElementById("skillDesc").value = "";
-    document.getElementById("skillTags").value = "";
-    document.getElementById("skillRepo").value = "";
-    pickedSkillIcon = "";
-    document.getElementById("skillIconPreview").textContent = "未選択";
+    // Reset form
+    ["skillName","skillNameEn","skillDescJa","skillDescEn","skillTags","skillRepo","skillContent"].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = "";
+    });
+    pickedSkillIcon = "⚔️";
+    document.getElementById("skillIconBtn").textContent = "⚔️";
+    document.getElementById("skillIdPreview").textContent = "—";
+    updateSkillPreview();
     loadFromApi();
     switchPage("catalog");
   } catch (e) {
