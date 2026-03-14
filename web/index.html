@@ -1319,13 +1319,14 @@ function renderSetCatalog() {
     const skillsList = s.skills || [];
     const skillDetails = skillsList.map(sk => {
       const skillText = typeof sk === 'string' ? sk : (sk.name || sk);
-      const skillObj = SKILLS_DATA.find(sd => sd.name === skillText.replace(/^[^a-zA-Z0-9]+ /, ''));
+      const cleanText = skillText.replace(/^[^\w]+ /, '').trim();
+      const skillObj = SKILLS_DATA.find(sd => sd.id === cleanText || sd.id === skillText || sd.name === cleanText || sd.name === skillText);
       return { text: skillText, obj: skillObj };
     });
 
     return `
     <div class="setcat-card ${s.equipped?'equipped':''}" data-idx="${i}" style="cursor:pointer">
-      <div class="setcat-header" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleSetDetail(${i})">
+      <div class="setcat-header" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer">
         <span class="setcat-name">${s.label || s.name}</span>
         <span style="font-size:16px;color:var(--dim);transition:.2s" class="set-toggle-icon">▼</span>
       </div>
@@ -1355,18 +1356,18 @@ function renderSetCatalog() {
     </div>
   `}).join("");
 
-  // Toggle detail expand/collapse
-  el.querySelectorAll(".setcat-card").forEach((card, idx) => {
+  // Toggle detail expand/collapse — card header click
+  el.querySelectorAll(".setcat-card").forEach((card) => {
     const header = card.querySelector(".setcat-header");
     const detail = card.querySelector(".setcat-detail");
     const toggleIcon = card.querySelector(".set-toggle-icon");
-    if (header) {
-      header.onclick = (e) => {
+    if (header && detail) {
+      header.addEventListener("click", (e) => {
         e.stopPropagation();
         const isOpen = detail.style.display !== "none";
-        detail.style.display = isOpen ? "none" : "";
-        toggleIcon.style.transform = isOpen ? "rotate(0deg)" : "rotate(180deg)";
-      };
+        detail.style.display = isOpen ? "none" : "block";
+        if (toggleIcon) toggleIcon.style.transform = isOpen ? "rotate(0deg)" : "rotate(180deg)";
+      });
     }
   });
 
