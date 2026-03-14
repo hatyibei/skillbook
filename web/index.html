@@ -286,36 +286,75 @@ body{padding-top:42px}
 <div class="user-bar">
   <span id="userDisplay" style="display:none"><span class="user-name" id="userName"></span></span>
   <button class="user-btn" id="myPageBtn" style="display:none" onclick="switchPage('mypage')">マイページ</button>
-  <button class="user-btn" id="settingsBtn" style="display:none" onclick="showSetupModal()">設定</button>
+  <button class="user-btn" id="settingsBtn" style="display:none" onclick="switchPage('mypage')">設定</button>
   <button class="user-btn" id="logoutBtn" style="display:none" onclick="logoutUser()">ログアウト</button>
-  <button class="user-btn gold" id="loginBtn" onclick="showSetupModal()">冒険者登録</button>
+  <button class="user-btn gold" id="loginBtn" onclick="showSetupModal()">登録 / ログイン</button>
 </div>
 
-<!-- User Setup Modal -->
+<!-- Auth Modal (Register / Login) -->
 <div class="modal-bg" id="setupBg">
-  <div class="modal" style="max-width:400px">
-    <button class="modal-close" onclick="document.getElementById('setupBg').classList.remove('show');document.body.style.overflow=''">&times;</button>
+  <div class="modal" style="max-width:420px">
+    <button class="modal-close" onclick="closeAuthModal()">&times;</button>
     <div style="padding:28px">
       <div style="text-align:center;font-size:36px;margin-bottom:8px">📖</div>
-      <div class="modal-name-title" style="text-align:center;font-size:18px;color:var(--gold);margin-bottom:4px">冒険者登録</div>
-      <div class="modal-name-desc" style="text-align:center;font-size:12px;color:var(--dim);margin-bottom:20px">ユーザー名を決めて、スキルの書の冒険を始めよう</div>
-      <div class="form-group">
-        <label class="form-label">ユーザー名（英数字, 2-20文字）</label>
-        <input class="form-input" id="setupUsername" placeholder="例: skill-master-42" maxlength="20">
+
+      <!-- Tab switch: Register / Login -->
+      <div style="display:flex;justify-content:center;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border)">
+        <button id="authTabRegister" style="flex:1;padding:10px;background:transparent;border:none;border-bottom:2px solid var(--gold);color:var(--gold);font-family:'DotGothic16',monospace;font-size:13px;cursor:pointer;margin-bottom:-2px" onclick="switchAuthTab('register')">📝 新規登録</button>
+        <button id="authTabLogin" style="flex:1;padding:10px;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--dim);font-family:'DotGothic16',monospace;font-size:13px;cursor:pointer;margin-bottom:-2px" onclick="switchAuthTab('login')">🔑 ログイン</button>
       </div>
-      <div class="form-group">
-        <label class="form-label">表示名（任意）</label>
-        <input class="form-input" id="setupDisplay" placeholder="例: スキルマスター">
+
+      <!-- Register Form -->
+      <div id="authFormRegister">
+        <div class="form-group">
+          <label class="form-label">ユーザー名（英数字, 2-20文字）</label>
+          <input class="form-input" id="setupUsername" placeholder="例: skill-master-42" maxlength="20">
+        </div>
+        <div class="form-group">
+          <label class="form-label">メールアドレス</label>
+          <input class="form-input" id="setupEmail" type="email" placeholder="例: you@example.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">パスワード（6文字以上）</label>
+          <input class="form-input" id="setupPassword" type="password" placeholder="••••••••">
+        </div>
+        <div class="form-group">
+          <label class="form-label">表示名（任意）</label>
+          <input class="form-input" id="setupDisplay" placeholder="例: スキルマスター">
+        </div>
+        <div class="form-group">
+          <label class="form-label">メインエージェント</label>
+          <select class="form-input" id="setupAgent">
+            <option value="claude-code">Claude Code</option><option value="codex">Codex</option>
+            <option value="cursor">Cursor</option><option value="copilot">Copilot</option>
+            <option value="gemini">Gemini</option><option value="goose">Goose</option>
+          </select>
+        </div>
+        <button class="submit-btn" style="width:100%;margin-top:4px" onclick="registerUser()">🗡️ 冒険を始める</button>
+        <div style="font-size:11px;color:var(--dim);margin-top:10px;text-align:center">登録するとAgent用APIキーも自動発行されます</div>
       </div>
-      <div class="form-group">
-        <label class="form-label">メインエージェント</label>
-        <select class="form-input" id="setupAgent">
-          <option value="claude-code">Claude Code</option><option value="codex">Codex</option>
-          <option value="cursor">Cursor</option><option value="copilot">Copilot</option>
-          <option value="gemini">Gemini</option><option value="goose">Goose</option>
-        </select>
+
+      <!-- Login Form -->
+      <div id="authFormLogin" style="display:none">
+        <div class="form-group">
+          <label class="form-label">メールアドレス</label>
+          <input class="form-input" id="loginEmail" type="email" placeholder="you@example.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">パスワード</label>
+          <input class="form-input" id="loginPassword" type="password" placeholder="••••••••">
+        </div>
+        <button class="submit-btn" style="width:100%;margin-top:4px" onclick="loginUser()">🔑 ログイン</button>
+        <div style="font-size:11px;color:var(--dim);margin-top:10px;text-align:center">別のデバイスやブラウザからでもログインできます</div>
       </div>
-      <button class="submit-btn" style="width:100%;margin-top:4px" onclick="registerUser()">冒険を始める</button>
+
+      <!-- API Key Display (shown after register) -->
+      <div id="apiKeyDisplay" style="display:none;margin-top:16px;padding:16px;background:var(--bg);border:2px solid var(--gold);border-radius:2px">
+        <div style="font-size:12px;color:var(--gold);margin-bottom:6px;font-weight:bold">🔑 あなたのAPIキー</div>
+        <div style="font-family:'Press Start 2P',monospace;font-size:8px;color:var(--green);word-break:break-all;margin-bottom:8px;padding:8px;background:var(--panel);border-radius:2px" id="apiKeyValue"></div>
+        <button class="submit-btn" style="font-size:11px;padding:6px 14px" onclick="copyApiKey()">📋 コピー</button>
+        <div style="font-size:10px;color:var(--red);margin-top:8px;line-height:1.5">⚠️ このキーは一度だけ表示されます。CLIやエージェントで使います：<br><code style="color:var(--green)">export SKILLBOOK_API_KEY=sk_...</code></div>
+      </div>
     </div>
   </div>
 </div>
@@ -1295,13 +1334,41 @@ function switchPage(page) {
   if (page === "mypage") renderMyPage();
 }
 
-// ===== User Management =====
+// ===== User Management (Auth) =====
 let currentUser = null;
+let authToken = null;
 
-function loadUser() {
-  const saved = window.localStorage ? localStorage.getItem("skillbook_user") : null;
-  if (saved) {
-    try { currentUser = JSON.parse(saved); updateUserUI(); } catch(e) {}
+async function loadUser() {
+  // Migrate from old key
+  if (window.localStorage && localStorage.getItem("skillbook_user")) {
+    localStorage.removeItem("skillbook_user");
+  }
+  const saved = window.localStorage ? localStorage.getItem("skillbook_session") : null;
+  if (!saved) return;
+  try {
+    const session = JSON.parse(saved);
+    authToken = session.token;
+    // Verify token with server
+    const res = await fetch(API_BASE + "/api/auth/me", {
+      headers: { "Authorization": "Bearer " + authToken }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      currentUser = data.user;
+      updateUserUI();
+    } else {
+      // Token expired or invalid — clear session
+      localStorage.removeItem("skillbook_session");
+      authToken = null;
+    }
+  } catch(e) {
+    // API unavailable — use cached user data as fallback
+    try {
+      const session = JSON.parse(saved);
+      currentUser = session.user;
+      authToken = session.token;
+      updateUserUI();
+    } catch(e2) {}
   }
 }
 
@@ -1317,64 +1384,130 @@ function updateUserUI() {
   }
 }
 
-function logoutUser() {
+async function logoutUser() {
+  if (authToken) {
+    fetch(API_BASE + "/api/auth/logout", {
+      method: "POST", headers: { "Authorization": "Bearer " + authToken }
+    }).catch(() => {});
+  }
   currentUser = null;
-  if (window.localStorage) localStorage.removeItem("skillbook_user");
+  authToken = null;
+  if (window.localStorage) localStorage.removeItem("skillbook_session");
   updateUserUI();
   switchPage("catalog");
   showToast("ログアウトしました");
 }
 
+function closeAuthModal() {
+  document.getElementById("setupBg").classList.remove("show");
+  document.body.style.overflow = "";
+  document.getElementById("apiKeyDisplay").style.display = "none";
+}
+
+function switchAuthTab(tab) {
+  const isRegister = tab === "register";
+  document.getElementById("authFormRegister").style.display = isRegister ? "" : "none";
+  document.getElementById("authFormLogin").style.display = isRegister ? "none" : "";
+  document.getElementById("authTabRegister").style.borderBottomColor = isRegister ? "var(--gold)" : "transparent";
+  document.getElementById("authTabRegister").style.color = isRegister ? "var(--gold)" : "var(--dim)";
+  document.getElementById("authTabLogin").style.borderBottomColor = isRegister ? "transparent" : "var(--gold)";
+  document.getElementById("authTabLogin").style.color = isRegister ? "var(--dim)" : "var(--gold)";
+  document.getElementById("apiKeyDisplay").style.display = "none";
+}
+
 function showSetupModal() {
-  const isEdit = !!currentUser;
-  if (isEdit) {
-    document.getElementById("setupUsername").value = currentUser.username;
-    document.getElementById("setupUsername").readOnly = true;
-    document.getElementById("setupUsername").style.opacity = "0.5";
-    document.getElementById("setupDisplay").value = currentUser.displayName || "";
-    document.getElementById("setupAgent").value = currentUser.favoriteAgent || "claude-code";
-    document.querySelector("#setupBg .submit-btn").textContent = "設定を保存";
-    document.querySelector("#setupBg .modal-name-title").textContent = "設定";
-    document.querySelector("#setupBg .modal-name-desc").textContent = "表示名やメインエージェントを変更できます";
-  } else {
-    document.getElementById("setupUsername").value = "";
-    document.getElementById("setupUsername").readOnly = false;
-    document.getElementById("setupUsername").style.opacity = "1";
-    document.getElementById("setupDisplay").value = "";
-    document.querySelector("#setupBg .submit-btn").textContent = "冒険を始める";
-    document.querySelector("#setupBg .modal-name-title").textContent = "冒険者登録";
-    document.querySelector("#setupBg .modal-name-desc").textContent = "ユーザー名を決めて、スキルの書の冒険を始めよう";
+  if (currentUser) {
+    // Already logged in — open settings/profile page
+    switchPage("mypage");
+    return;
   }
+  switchAuthTab("register");
+  document.getElementById("setupBg").classList.add("show");
+  document.body.style.overflow = "hidden";
+}
+
+function showLoginModal() {
+  switchAuthTab("login");
   document.getElementById("setupBg").classList.add("show");
   document.body.style.overflow = "hidden";
 }
 
 async function registerUser() {
   const username = document.getElementById("setupUsername").value.trim();
+  const email = document.getElementById("setupEmail").value.trim();
+  const password = document.getElementById("setupPassword").value;
   const displayName = document.getElementById("setupDisplay").value.trim() || username;
   const favoriteAgent = document.getElementById("setupAgent").value;
 
   if (!username || username.length < 2 || !/^[a-zA-Z0-9_-]+$/.test(username)) {
-    showToast("ユーザー名は英数字2文字以上で入力してね");
-    return;
+    showToast("ユーザー名は英数字2文字以上で入力してね"); return;
+  }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showToast("有効なメールアドレスを入力してね"); return;
+  }
+  if (!password || password.length < 6) {
+    showToast("パスワードは6文字以上で設定してね"); return;
   }
 
   try {
-    const res = await fetch(API_BASE + "/api/users", {
+    const res = await fetch(API_BASE + "/api/auth/register", {
       method: "POST", headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({ username, displayName, favoriteAgent }),
+      body: JSON.stringify({ username, email, password, displayName, favoriteAgent }),
     });
-    if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
     const data = await res.json();
-    currentUser = data.user || { username, displayName, favoriteAgent };
-    if (window.localStorage) localStorage.setItem("skillbook_user", JSON.stringify(currentUser));
+    if (!res.ok) throw new Error(data.error);
+
+    currentUser = data.user;
+    authToken = data.token;
+    if (window.localStorage) {
+      localStorage.setItem("skillbook_session", JSON.stringify({ token: data.token, user: data.user }));
+    }
     updateUserUI();
-    document.getElementById("setupBg").classList.remove("show");
-    document.body.style.overflow = "";
+
+    // Show API key
+    if (data.apiKey) {
+      document.getElementById("apiKeyValue").textContent = data.apiKey;
+      document.getElementById("apiKeyDisplay").style.display = "";
+    }
+
     showToast("冒険者登録完了！ ようこそ、" + displayName + "！");
   } catch (e) {
     showToast("登録エラー: " + e.message);
   }
+}
+
+async function loginUser() {
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value;
+
+  if (!email || !password) {
+    showToast("メールアドレスとパスワードを入力してね"); return;
+  }
+
+  try {
+    const res = await fetch(API_BASE + "/api/auth/login", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    currentUser = data.user;
+    authToken = data.token;
+    if (window.localStorage) {
+      localStorage.setItem("skillbook_session", JSON.stringify({ token: data.token, user: data.user }));
+    }
+    updateUserUI();
+    closeAuthModal();
+    showToast("おかえりなさい、" + (currentUser.displayName || currentUser.username) + "！");
+  } catch (e) {
+    showToast("ログインエラー: " + e.message);
+  }
+}
+
+function copyApiKey() {
+  const key = document.getElementById("apiKeyValue").textContent;
+  navigator.clipboard.writeText(key).then(() => showToast("APIキーをコピーしました！"));
 }
 
 // ===== Emoji Picker =====
@@ -1534,8 +1667,10 @@ async function registerSkill() {
   if (!descJa) { showToast("🇯🇵 日本語の説明を入力してね"); return; }
 
   try {
+    const headers = {"Content-Type":"application/json"};
+    if (authToken) headers["Authorization"] = "Bearer " + authToken;
     const res = await fetch(API_BASE + "/api/skills", {
-      method: "POST", headers: {"Content-Type":"application/json"},
+      method: "POST", headers,
       body: JSON.stringify({
         name, name_en: nameEn.toUpperCase(), icon: pickedSkillIcon,
         description: descEn, description_ja: descJa, content,
@@ -1599,8 +1734,10 @@ async function createNewSet() {
   });
 
   try {
+    const headers = {"Content-Type":"application/json"};
+    if (authToken) headers["Authorization"] = "Bearer " + authToken;
     const res = await fetch(API_BASE + "/api/sets", {
-      method: "POST", headers: {"Content-Type":"application/json"},
+      method: "POST", headers,
       body: JSON.stringify({ name, description: desc, skills, icon, agents: ["claude-code"], author: currentUser.username }),
     });
     if (!res.ok) throw new Error("登録失敗");
@@ -1625,7 +1762,80 @@ async function renderMyPage() {
     return;
   }
 
-  el.innerHTML = '<div class="profile-card pg"><div class="profile-avatar">⚔️</div><div class="profile-info"><div class="profile-name">'+(currentUser.displayName||currentUser.username)+'</div><div class="profile-meta">@'+currentUser.username+' / '+currentUser.favoriteAgent+'</div><div class="profile-stats"><div class="profile-stat"><div class="profile-stat-n" id="mySetCount">-</div><div class="profile-stat-l">セット</div></div><div class="profile-stat"><div class="profile-stat-n" id="myReviewCount">-</div><div class="profile-stat-l">レビュー</div></div></div></div></div><div class="sec-t" style="margin-bottom:12px">📦 マイスキルセット</div><div id="mySets"><div class="no-reviews">読み込み中...</div></div><div class="sec-t" style="margin-top:24px;margin-bottom:12px">📝 マイレビュー</div><div id="myReviews"><div class="no-reviews">読み込み中...</div></div>';
+  el.innerHTML = `
+<div class="profile-card pg">
+  <div class="profile-avatar">⚔️</div>
+  <div class="profile-info">
+    <div class="profile-name">${currentUser.displayName||currentUser.username}</div>
+    <div class="profile-meta">@${currentUser.username} / ${currentUser.favoriteAgent||'claude-code'}</div>
+    <div class="profile-stats">
+      <div class="profile-stat"><div class="profile-stat-n" id="mySetCount">-</div><div class="profile-stat-l">セット</div></div>
+      <div class="profile-stat"><div class="profile-stat-n" id="myReviewCount">-</div><div class="profile-stat-l">レビュー</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- API Key Management -->
+<div class="sec-t" style="margin-top:24px;margin-bottom:8px">🔑 APIキー管理</div>
+<div class="sec-d">エージェントがAPIを使う際のAPIキー。CLIやスクリプトでの自動操作に利用できます。</div>
+<div class="pb" style="padding:16px;background:var(--panel);margin-bottom:20px">
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <code id="myApiKeyValue" style="background:var(--bg);padding:8px 12px;border-radius:2px;font-size:13px;color:var(--green);flex:1;min-width:200px;word-break:break-all">読み込み中...</code>
+    <button class="submit-btn" style="font-size:12px;padding:6px 12px" onclick="copyMyApiKey()">📋 コピー</button>
+    <button class="submit-btn" style="font-size:12px;padding:6px 12px;background:var(--red)" onclick="regenerateApiKey()">🔄 再生成</button>
+  </div>
+  <div style="font-size:11px;color:var(--dim);margin-top:8px">
+    Usage: <code style="color:var(--blue)">Authorization: Bearer sk_xxxxx</code>
+  </div>
+</div>
+
+<!-- Profile Edit -->
+<div class="sec-t" style="margin-bottom:8px">✏️ プロフィール編集</div>
+<div class="pb" style="padding:16px;background:var(--panel);margin-bottom:20px">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+    <div>
+      <label style="font-size:12px;color:var(--dim);display:block;margin-bottom:4px">表示名</label>
+      <input type="text" id="editDisplayName" value="${currentUser.displayName||''}" style="width:100%;background:var(--bg);border:2px solid var(--border);border-radius:2px;padding:8px;color:var(--text);font-family:inherit">
+    </div>
+    <div>
+      <label style="font-size:12px;color:var(--dim);display:block;margin-bottom:4px">お気に入りエージェント</label>
+      <select id="editFavAgent" style="width:100%;background:var(--bg);border:2px solid var(--border);border-radius:2px;padding:8px;color:var(--text);font-family:inherit">
+        <option value="claude-code" ${currentUser.favoriteAgent==='claude-code'?'selected':''}>Claude Code</option>
+        <option value="cursor" ${currentUser.favoriteAgent==='cursor'?'selected':''}>Cursor</option>
+        <option value="windsurf" ${currentUser.favoriteAgent==='windsurf'?'selected':''}>Windsurf</option>
+        <option value="cline" ${currentUser.favoriteAgent==='cline'?'selected':''}>Cline</option>
+        <option value="roo-code" ${currentUser.favoriteAgent==='roo-code'?'selected':''}>Roo Code</option>
+        <option value="other" ${currentUser.favoriteAgent==='other'?'selected':''}>Other</option>
+      </select>
+    </div>
+  </div>
+  <button class="submit-btn" style="font-size:12px;padding:8px 20px" onclick="saveProfile()">💾 保存</button>
+</div>
+
+<!-- Password Change -->
+<div class="sec-t" style="margin-bottom:8px">🔒 パスワード変更</div>
+<div class="pb" style="padding:16px;background:var(--panel);margin-bottom:20px">
+  <div style="display:grid;gap:12px;max-width:400px">
+    <div>
+      <label style="font-size:12px;color:var(--dim);display:block;margin-bottom:4px">現在のパスワード</label>
+      <input type="password" id="currentPw" style="width:100%;background:var(--bg);border:2px solid var(--border);border-radius:2px;padding:8px;color:var(--text);font-family:inherit">
+    </div>
+    <div>
+      <label style="font-size:12px;color:var(--dim);display:block;margin-bottom:4px">新しいパスワード（6文字以上）</label>
+      <input type="password" id="newPw" style="width:100%;background:var(--bg);border:2px solid var(--border);border-radius:2px;padding:8px;color:var(--text);font-family:inherit">
+    </div>
+    <button class="submit-btn" style="font-size:12px;padding:8px 20px;width:fit-content" onclick="changePassword()">🔒 パスワード変更</button>
+  </div>
+</div>
+
+<div class="sec-t" style="margin-bottom:12px">📦 マイスキルセット</div>
+<div id="mySets"><div class="no-reviews">読み込み中...</div></div>
+<div class="sec-t" style="margin-top:24px;margin-bottom:12px">📝 マイレビュー</div>
+<div id="myReviews"><div class="no-reviews">読み込み中...</div></div>
+`;
+
+  // Load API key
+  loadMyApiKey();
 
   // Load user data
   try {
@@ -1653,6 +1863,101 @@ async function renderMyPage() {
   }
 }
 
+// ===== My Page: API Key =====
+async function loadMyApiKey() {
+  if (!authToken) return;
+  try {
+    const res = await fetch(API_BASE + "/api/auth/api-key", {
+      headers: { "Authorization": "Bearer " + authToken }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const el = document.getElementById("myApiKeyValue");
+      if (el) el.textContent = data.apiKey || "未設定";
+    }
+  } catch(e) {
+    const el = document.getElementById("myApiKeyValue");
+    if (el) el.textContent = "取得エラー";
+  }
+}
+
+function copyMyApiKey() {
+  const val = document.getElementById("myApiKeyValue")?.textContent;
+  if (val && val.startsWith("sk_")) {
+    navigator.clipboard.writeText(val).then(() => showToast("APIキーをコピーしました"));
+  } else {
+    showToast("コピーできるAPIキーがありません");
+  }
+}
+
+async function regenerateApiKey() {
+  if (!confirm("APIキーを再生成すると、古いキーは無効になります。よろしいですか？")) return;
+  try {
+    const res = await fetch(API_BASE + "/api/auth/api-key/regenerate", {
+      method: "POST", headers: { "Authorization": "Bearer " + authToken }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      document.getElementById("myApiKeyValue").textContent = data.apiKey;
+      showToast("APIキーを再生成しました！ 新しいキーをコピーしてね");
+    } else {
+      showToast("再生成に失敗しました");
+    }
+  } catch(e) {
+    showToast("エラーが発生しました");
+  }
+}
+
+// ===== My Page: Profile Save =====
+async function saveProfile() {
+  try {
+    const res = await fetch(API_BASE + "/api/auth/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + authToken },
+      body: JSON.stringify({
+        displayName: document.getElementById("editDisplayName").value.trim(),
+        favoriteAgent: document.getElementById("editFavAgent").value,
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      currentUser = data.user || { ...currentUser, displayName: document.getElementById("editDisplayName").value.trim(), favoriteAgent: document.getElementById("editFavAgent").value };
+      localStorage.setItem("skillbook_session", JSON.stringify({ token: authToken, user: currentUser }));
+      updateUserUI();
+      showToast("プロフィールを更新しました！");
+    } else {
+      showToast("更新に失敗しました");
+    }
+  } catch(e) {
+    showToast("エラーが発生しました");
+  }
+}
+
+// ===== My Page: Password Change =====
+async function changePassword() {
+  const currentPw = document.getElementById("currentPw").value;
+  const newPw = document.getElementById("newPw").value;
+  if (!currentPw) { showToast("現在のパスワードを入力してね"); return; }
+  if (!newPw || newPw.length < 6) { showToast("新しいパスワードは6文字以上で"); return; }
+  try {
+    const res = await fetch(API_BASE + "/api/auth/change-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + authToken },
+      body: JSON.stringify({ currentPassword: currentPw, newPassword: newPw }),
+    });
+    if (res.ok) {
+      document.getElementById("currentPw").value = "";
+      document.getElementById("newPw").value = "";
+      showToast("パスワードを変更しました！");
+    } else {
+      const data = await res.json();
+      showToast(data.error || "変更に失敗しました");
+    }
+  } catch(e) {
+    showToast("エラーが発生しました");
+  }
+}
+
 // ===== Sponsor =====
 function openSponsor(tier) {
   const links = {
@@ -1673,8 +1978,10 @@ document.getElementById("submitReview").onclick = async () => {
   btn.disabled = true;
   btn.textContent = "送信中...";
   try {
+    const reviewHeaders = {"Content-Type":"application/json"};
+    if (authToken) reviewHeaders["Authorization"] = "Bearer " + authToken;
     const res = await fetch(API_BASE + "/api/reviews", {
-      method: "POST", headers: {"Content-Type":"application/json"},
+      method: "POST", headers: reviewHeaders,
       body: JSON.stringify({
         targetId: currentSkill.id,
         targetType: "skill",
