@@ -88,13 +88,20 @@ function importSkill(args) {
     return;
   }
 
-  // Local directory
+  // Local path (file or directory)
   const absSource = path.resolve(source);
   if (!fs.existsSync(absSource)) return ui.err(`Path not found: ${absSource}`);
-  const name = flags.name || path.basename(absSource);
+  const isFile = fs.statSync(absSource).isFile();
+  const defaultName = isFile ? path.basename(absSource, path.extname(absSource)) : path.basename(absSource);
+  const name = flags.name || defaultName;
   const dest = path.join(STORE_DIR, name);
   if (fs.existsSync(dest)) return ui.warn(`"${name}" already exists.`);
-  store.copyDirSync(absSource, dest);
+  if (isFile) {
+    fs.mkdirSync(dest, { recursive: true });
+    fs.copyFileSync(absSource, path.join(dest, "SKILL.md"));
+  } else {
+    store.copyDirSync(absSource, dest);
+  }
   ui.ok(`Imported "${name}" from ${absSource}`);
 }
 
@@ -185,22 +192,24 @@ function equip(args) {
   const targetDir = path.join(config.projectRoot || process.cwd(), AGENT_SKILL_DIRS[agent]);
   fs.mkdirSync(targetDir, { recursive: true });
 
-  // Remove existing symlinks
+  // Remove existing skillbook symlinks (not user's original files)
   if (fs.existsSync(targetDir)) {
     for (const item of fs.readdirSync(targetDir)) {
       const p = path.join(targetDir, item);
-      if (fs.lstatSync(p).isSymbolicLink()) fs.unlinkSync(p);
-      if (item.startsWith("_") && item.endsWith("_instructions.md")) fs.unlinkSync(p);
+      const isLink = fs.lstatSync(p).isSymbolicLink();
+      const isInstructions = item.startsWith("_") && item.endsWith("_instructions.md");
+      if (isLink) { fs.unlinkSync(p); continue; }
+      if (isInstructions) { fs.unlinkSync(p); continue; }
     }
   }
 
-  // Link skills
+  // Link SKILL.md files directly (not directories)
   let linked = 0;
   for (const sk of setData.skills || []) {
-    const src = path.join(STORE_DIR, sk);
-    if (!fs.existsSync(src)) { ui.warn(`"${sk}" not in store, skipping.`); continue; }
-    const lnk = path.join(targetDir, sk);
-    if (!fs.existsSync(lnk)) { fs.symlinkSync(src, lnk, "dir"); linked++; }
+    const skillFile = path.join(STORE_DIR, sk, "SKILL.md");
+    if (!fs.existsSync(skillFile)) { ui.warn(`"${sk}" not in store (no SKILL.md), skipping.`); continue; }
+    const lnk = path.join(targetDir, `${sk}.md`);
+    if (!fs.existsSync(lnk)) { fs.symlinkSync(skillFile, lnk, "file"); linked++; }
   }
 
   if (setData.custom_instructions) {
@@ -223,8 +232,10 @@ function unequip() {
   let removed = 0;
   for (const item of fs.readdirSync(targetDir)) {
     const p = path.join(targetDir, item);
-    if (fs.lstatSync(p).isSymbolicLink()) { fs.unlinkSync(p); removed++; }
-    if (item.startsWith("_") && item.endsWith("_instructions.md")) fs.unlinkSync(p);
+    const isLink = fs.lstatSync(p).isSymbolicLink();
+    const isInstructions = item.startsWith("_") && item.endsWith("_instructions.md");
+    if (isLink) { fs.unlinkSync(p); removed++; continue; }
+    if (isInstructions) { fs.unlinkSync(p); removed++; continue; }
   }
   config.activeSet = null;
   store.writeConfig(config);
@@ -467,12 +478,19 @@ async function search(args) {
 
 // ===== GET (download skill from catalog) =====
 async function get(args) {
-  const id = args[0];
-  if (!id) return ui.err("Usage: skillbook get <skill-id>");
+  const { flags, positional } = parseFlags(args);
+  const id = positional[0];
+  if (!id) return ui.err("Usage: skillbook get <skill-id> [--force]");
   store.ensureDirs();
 
   const dest = path.join(STORE_DIR, id);
-  if (fs.existsSync(dest)) { ui.warn(`"${id}" already exists in store. Use --force to overwrite.`); return; }
+  if (fs.existsSync(dest)) {
+    if (flags.force) {
+      fs.rmSync(dest, { recursive: true });
+    } else {
+      ui.warn(`"${id}" already exists in store. Use --force to overwrite.`); return;
+    }
+  }
 
   try {
     ui.info(`Downloading "${id}" from skillbook catalog...`);
@@ -578,7 +596,7 @@ function login(args) {
   const apiKey = flags["api-key"] || flags.key || args[0];
   if (!apiKey) {
     ui.err("Usage: skillbook login --api-key sk_xxxxx");
-    ui.info("Get your API key at: https://skillbook-web-140498091344.asia-northeast1.run.app (マイページ)");
+    ui.info("Get your API key at: https://skillbooks.dev (マイページ)");
     return;
   }
   const config = store.readConfig();
@@ -586,6 +604,59 @@ function login(args) {
   store.writeConfig(config);
   ui.ok("API key saved to ~/.skillbook/config.json");
   ui.info("You can now publish skills: skillbook publish-remote <set-name>");
+}
+
+// ===== PUBLISH-REMOTE (publish to skillbook catalog using API key) =====
+async function publishRemote(args) {
+  const { flags, positional } = parseFlags(args);
+  const setName = positional[0];
+  if (!setName) return ui.err("Usage: skillbook publish-remote <set-name>");
+
+  const config = store.readConfig();
+  if (!config.apiKey) {
+    ui.err("Not logged in. Run: skillbook login --api-key sk_xxxxx");
+    return;
+  }
+
+  const setData = store.getSet(setName);
+  if (!setData) return ui.err(`Set "${setName}" not found.`);
+
+  // Build skills payload
+  const skills = [];
+  for (const sk of setData.skills || []) {
+    const skillFile = path.join(STORE_DIR, sk, "SKILL.md");
+    if (!fs.existsSync(skillFile)) { ui.warn(`"${sk}" not in store, skipping.`); continue; }
+    const content = fs.readFileSync(skillFile, "utf-8");
+    const meta = store.readSkillMeta(sk);
+    skills.push({
+      id: sk,
+      name: meta.name || sk,
+      description: meta.description || "",
+      description_ja: meta.description_ja || "",
+      rarity: meta.rarity || "COMMON",
+      agents: meta.agents || ["claude-code"],
+      content,
+    });
+  }
+
+  const payload = {
+    setName,
+    description: setData.description || "",
+    skills,
+    agents: setData.agents || ["claude-code"],
+    custom_instructions: setData.custom_instructions || "",
+  };
+
+  try {
+    ui.info(`Publishing "${setName}" (${skills.length} skills) to catalog...`);
+    const result = await apiPost("/api/agent/publish", payload, config.apiKey);
+    if (result.error) { ui.err(result.error); return; }
+    ui.ok(`Published "${setName}" to skillbook catalog`);
+    if (result.url) ui.info(`View: ${result.url}`);
+    if (result.setId) ui.info(`Install: skillbook get-set ${result.setId}`);
+  } catch (e) {
+    ui.err(`Publish failed: ${e.message}`);
+  }
 }
 
 // ===== BROWSE (discover curated skills) =====
@@ -647,6 +718,7 @@ function helpFull() {
   ${C.BOLD}Publishing:${C.RESET}
     login --api-key sk_xxxxx              Store your API key
     publish <set> [--scope org]           Prepare set for npm publish
+    publish-remote <set>                  Publish set to skillbook catalog
 
   ${C.BOLD}Agents:${C.RESET} ${Object.keys(AGENT_SKILL_DIRS).join(", ")}
 
@@ -657,7 +729,8 @@ function helpFull() {
     $ skillbook equip dev-review-set
     $ skillbook browse cursor
     $ skillbook login --api-key sk_193c28...
+    $ skillbook publish-remote my-set
 `);
 }
 
-module.exports = { init, add, importSkill, install, create, equip, unequip, fork, agent, publish, list, status, help: helpFull, search, get, getSet, login, browse };
+module.exports = { init, add, importSkill, install, create, equip, unequip, fork, agent, publish, publishRemote, list, status, help: helpFull, search, get, getSet, login, browse };
