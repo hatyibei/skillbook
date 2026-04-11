@@ -8,6 +8,7 @@ const map = {
   agent: cmd.agent, publish: cmd.publish, list: cmd.list, ls: cmd.list,
   status: cmd.status, st: cmd.status, help: cmd.help, "--help": cmd.help, "-h": cmd.help,
   search: cmd.search, get: cmd.get, "get-set": cmd.getSet, login: cmd.login, browse: cmd.browse,
+  "publish-remote": cmd.publishRemote,
 };
 if (!command) { ui.banner(); console.log("  Run 'skillbook help' for usage.\n"); }
 else if (map[command]) map[command](args);
