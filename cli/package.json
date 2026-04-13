@@ -5,6 +5,9 @@
   "bin": {
     "skillbook": "./bin/skillbook.js"
   },
+  "scripts": {
+    "test": "node --test 'test/**/*.test.js'"
+  },
   "files": [
     "bin/",
     "lib/",
