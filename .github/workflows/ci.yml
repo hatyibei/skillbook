@@ -39,7 +39,7 @@ jobs:
           node-version: '20'
       - name: Install dependencies
         working-directory: backend
-        run: npm ci
+        run: npm install --no-audit --no-fund
       - name: Backend syntax check
         working-directory: backend
         run: node -c src/index.js
