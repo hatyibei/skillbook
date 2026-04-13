@@ -192,24 +192,28 @@ function equip(args) {
   const targetDir = path.join(config.projectRoot || process.cwd(), AGENT_SKILL_DIRS[agent]);
   fs.mkdirSync(targetDir, { recursive: true });
 
-  // Remove existing skillbook symlinks (not user's original files)
+  // Remove existing skillbook symlinks (not user's original files).
+  // Claude Code / codex / cursor などのskills仕様は <skill-name>/SKILL.md (ディレクトリ型) なので、
+  // 旧フラットファイル形式 (<skill-name>.md) の残骸も合わせて掃除する。
   if (fs.existsSync(targetDir)) {
     for (const item of fs.readdirSync(targetDir)) {
       const p = path.join(targetDir, item);
-      const isLink = fs.lstatSync(p).isSymbolicLink();
+      const lst = fs.lstatSync(p);
+      const isLink = lst.isSymbolicLink();
       const isInstructions = item.startsWith("_") && item.endsWith("_instructions.md");
       if (isLink) { fs.unlinkSync(p); continue; }
       if (isInstructions) { fs.unlinkSync(p); continue; }
     }
   }
 
-  // Link SKILL.md files directly (not directories)
+  // Link skill directories (contains SKILL.md) so agents recognize them as skills.
   let linked = 0;
   for (const sk of setData.skills || []) {
-    const skillFile = path.join(STORE_DIR, sk, "SKILL.md");
+    const skillDir = path.join(STORE_DIR, sk);
+    const skillFile = path.join(skillDir, "SKILL.md");
     if (!fs.existsSync(skillFile)) { ui.warn(`"${sk}" not in store (no SKILL.md), skipping.`); continue; }
-    const lnk = path.join(targetDir, `${sk}.md`);
-    if (!fs.existsSync(lnk)) { fs.symlinkSync(skillFile, lnk, "file"); linked++; }
+    const lnk = path.join(targetDir, sk);
+    if (!fs.existsSync(lnk)) { fs.symlinkSync(skillDir, lnk, "dir"); linked++; }
   }
 
   if (setData.custom_instructions) {
