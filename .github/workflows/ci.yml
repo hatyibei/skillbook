@@ -28,6 +28,9 @@ jobs:
         run: |
           node bin/skillbook.js help
           node bin/skillbook.js status || true
+      - name: CLI unit / E2E tests
+        working-directory: cli
+        run: npm test
 
   # ===== Backend Tests =====
   backend-test:

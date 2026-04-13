@@ -196,13 +196,18 @@ function equip(args) {
   // Claude Code / codex / cursor などのskills仕様は <skill-name>/SKILL.md (ディレクトリ型) なので、
   // 旧フラットファイル形式 (<skill-name>.md) の残骸も合わせて掃除する。
   if (fs.existsSync(targetDir)) {
+    const skillNames = new Set((setData.skills || []));
     for (const item of fs.readdirSync(targetDir)) {
       const p = path.join(targetDir, item);
       const lst = fs.lstatSync(p);
       const isLink = lst.isSymbolicLink();
       const isInstructions = item.startsWith("_") && item.endsWith("_instructions.md");
+      // Legacy layout from older skillbook: `<skill>.md` regular file in skills dir.
+      const legacyName = item.endsWith(".md") ? item.slice(0, -3) : null;
+      const isLegacyFile = lst.isFile() && legacyName && skillNames.has(legacyName);
       if (isLink) { fs.unlinkSync(p); continue; }
       if (isInstructions) { fs.unlinkSync(p); continue; }
+      if (isLegacyFile) { fs.unlinkSync(p); continue; }
     }
   }
 
