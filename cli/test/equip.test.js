@@ -134,6 +134,44 @@ test(
 );
 
 test(
+  "unequip should remove legacy `<skill>.md` regular files for skills in the active set",
+  withSandbox(async (_t, { projectRoot }) => {
+    const { STORE_DIR } = require("../lib/constants");
+    const store = require("../lib/store");
+    const commands = require("../lib/commands");
+
+    process.chdir(projectRoot);
+    store.ensureDirs();
+    const config = store.readConfig();
+    config.projectRoot = projectRoot;
+    config.agent = "claude-code";
+    store.writeConfig(config);
+
+    seedSkill(STORE_DIR, "alpha");
+    store.saveSet("s", { description: "", skills: ["alpha"], agents: ["claude-code"] });
+    commands.equip(["s"]);
+
+    const skillsDir = path.join(projectRoot, ".claude", "skills");
+    const legacyMatch = path.join(skillsDir, "alpha.md");
+    const legacyOther = path.join(skillsDir, "user-notes.md");
+    fs.writeFileSync(legacyMatch, "leftover from old skillbook");
+    fs.writeFileSync(legacyOther, "user's own notes");
+
+    commands.unequip();
+
+    assert.equal(
+      fs.existsSync(legacyMatch),
+      false,
+      "legacy `<skill>.md` matching the active set must be cleaned up",
+    );
+    assert.ok(
+      fs.existsSync(legacyOther),
+      "regular .md file NOT in the active set must be preserved",
+    );
+  }),
+);
+
+test(
   "unequip should remove skillbook-managed symlinks but keep user-created files",
   withSandbox(async (_t, { projectRoot }) => {
     const { STORE_DIR } = require("../lib/constants");

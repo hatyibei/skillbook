@@ -7,6 +7,16 @@ const { STORE_DIR, SETS_DIR, AGENT_SKILL_DIRS, C, API_BASE } = require("./consta
 const store = require("./store");
 const ui = require("./ui");
 
+// Reject names that could escape ~/.skillbook/ via path traversal or shell metachars.
+// Returns true if validated, false (with ui.err) otherwise.
+function checkName(name, label = "name") {
+  if (!store.isValidName(name)) {
+    ui.err(`Invalid ${label} ${JSON.stringify(name)} — ${store.NAME_HINT}`);
+    return false;
+  }
+  return true;
+}
+
 // ===== parseFlags: --key value pairs from args =====
 function parseFlags(args) {
   const flags = {}; const positional = [];
@@ -39,6 +49,7 @@ function init(args) {
 function add(args) {
   const name = args[0];
   if (!name) return ui.err("Usage: skillbook add <skill-name>");
+  if (!checkName(name, "skill name")) return;
   store.ensureDirs();
   const dir = path.join(STORE_DIR, name);
   const file = path.join(dir, "SKILL.md");
@@ -73,6 +84,7 @@ function importSkill(args) {
   // Git URL
   if (source.startsWith("http") || source.startsWith("git@")) {
     const name = flags.name || path.basename(source, ".git");
+    if (!checkName(name, "skill name")) return;
     const dest = path.join(STORE_DIR, name);
     if (fs.existsSync(dest)) return ui.warn(`"${name}" already exists.`);
     try {
@@ -94,6 +106,7 @@ function importSkill(args) {
   const isFile = fs.statSync(absSource).isFile();
   const defaultName = isFile ? path.basename(absSource, path.extname(absSource)) : path.basename(absSource);
   const name = flags.name || defaultName;
+  if (!checkName(name, "skill name")) return;
   const dest = path.join(STORE_DIR, name);
   if (fs.existsSync(dest)) return ui.warn(`"${name}" already exists.`);
   if (isFile) {
@@ -128,6 +141,7 @@ function install(args) {
     } else {
       for (const sd of skillDirs) {
         const name = path.basename(sd);
+        if (!store.isValidName(name)) { ui.warn(`Skipping invalid skill name "${name}" (${store.NAME_HINT}).`); continue; }
         const dest = path.join(STORE_DIR, name);
         if (!fs.existsSync(dest)) {
           store.copyDirSync(sd, dest);
@@ -161,7 +175,9 @@ function create(args) {
   const { flags, positional } = parseFlags(args);
   const name = positional[0];
   if (!name) return ui.err("Usage: skillbook create <set-name> --skills a,b --desc \"...\"");
+  if (!checkName(name, "set name")) return;
   const skills = flags.skills ? flags.skills.split(",").map(s => s.trim()) : [];
+  for (const s of skills) { if (!checkName(s, "skill name")) return; }
   const desc = flags.desc || "";
 
   store.saveSet(name, {
@@ -180,6 +196,7 @@ function create(args) {
 function equip(args) {
   const name = args[0];
   if (!name) return ui.err("Usage: skillbook equip <set-name>");
+  if (!checkName(name, "set name")) return;
   const config = store.readConfig();
   const setData = store.getSet(name);
   if (!setData) {
@@ -236,15 +253,29 @@ function unequip() {
   const config = store.readConfig();
   const agent = config.agent || "claude-code";
   const targetDir = path.join(config.projectRoot || process.cwd(), AGENT_SKILL_DIRS[agent]);
-  if (!fs.existsSync(targetDir)) return ui.info("Nothing to unequip.");
+  if (!fs.existsSync(targetDir)) {
+    config.activeSet = null;
+    store.writeConfig(config);
+    return ui.info("Nothing to unequip.");
+  }
+
+  // Mirror equip()'s legacy-file cleanup so the pair is symmetric: any
+  // `<skill>.md` regular file matching a skill in the currently-active set
+  // is skillbook's leftover from older versions and must be removed too.
+  const activeSetData = config.activeSet ? store.getSet(config.activeSet) : null;
+  const skillNames = new Set((activeSetData && activeSetData.skills) || []);
 
   let removed = 0;
   for (const item of fs.readdirSync(targetDir)) {
     const p = path.join(targetDir, item);
-    const isLink = fs.lstatSync(p).isSymbolicLink();
+    const lst = fs.lstatSync(p);
+    const isLink = lst.isSymbolicLink();
     const isInstructions = item.startsWith("_") && item.endsWith("_instructions.md");
+    const legacyName = item.endsWith(".md") ? item.slice(0, -3) : null;
+    const isLegacyFile = lst.isFile() && legacyName && skillNames.has(legacyName);
     if (isLink) { fs.unlinkSync(p); removed++; continue; }
     if (isInstructions) { fs.unlinkSync(p); removed++; continue; }
+    if (isLegacyFile) { fs.unlinkSync(p); removed++; continue; }
   }
   config.activeSet = null;
   store.writeConfig(config);
@@ -257,9 +288,14 @@ function fork(args) {
   const source = positional[0];
   const newName = flags.name || (source ? `${source}-fork` : null);
   if (!source) return ui.err("Usage: skillbook fork <set-name> --name <new-name>");
+  if (!checkName(source, "set name")) return;
+  if (!checkName(newName, "set name")) return;
 
   const setData = store.getSet(source);
   if (!setData) return ui.err(`Set "${source}" not found.`);
+  if (store.getSet(newName) && !flags.force) {
+    return ui.warn(`Set "${newName}" already exists. Use --force to overwrite.`);
+  }
 
   const forked = { ...setData, forkedFrom: source, created: new Date().toISOString() };
   store.saveSet(newName, forked);
@@ -284,15 +320,26 @@ function agent(args) {
   }
 
   if (!AGENT_SKILL_DIRS[newAgent]) return ui.err(`Unknown agent: ${newAgent}`);
+
+  const oldAgent = config.agent;
+  const activeSet = config.activeSet;
+
+  // Clean up the OLD agent's skills dir before switching, so we don't leave
+  // stale symlinks pointing into the store from the previously-active agent.
+  // unequip() reads config from disk, so call it while config.agent is still oldAgent.
+  if (activeSet && oldAgent && oldAgent !== newAgent) {
+    unequip();
+  }
+
   config.agent = newAgent;
+  if (activeSet) config.activeSet = activeSet; // unequip cleared it; restore for re-equip below
   store.writeConfig(config);
   ui.ok(`Switched to ${newAgent}`);
   ui.info(`Skills dir: ${AGENT_SKILL_DIRS[newAgent]}`);
 
-  // Re-equip if set is active
-  if (config.activeSet) {
-    ui.info(`Re-equipping "${config.activeSet}" for ${newAgent}...`);
-    equip([config.activeSet]);
+  if (activeSet) {
+    ui.info(`Re-equipping "${activeSet}" for ${newAgent}...`);
+    equip([activeSet]);
   }
 }
 
@@ -301,6 +348,7 @@ function publish(args) {
   const { flags, positional } = parseFlags(args);
   const setName = positional[0];
   if (!setName) return ui.err("Usage: skillbook publish <set-name>");
+  if (!checkName(setName, "set name")) return;
 
   const setData = store.getSet(setName);
   if (!setData) return ui.err(`Set "${setName}" not found.`);
@@ -425,6 +473,18 @@ function help() {
 }
 
 // ===== API Helper =====
+// Surface HTTP status and a body excerpt so users can tell 401/500/HTML errors
+// apart from genuine JSON parse failures.
+function bodyExcerpt(s) { return (s || "").slice(0, 120).replace(/\s+/g, " ").trim(); }
+function settleResponse(res, data, resolve, reject) {
+  const status = res.statusCode || 0;
+  if (status < 200 || status >= 300) {
+    return reject(new Error(`HTTP ${status} ${res.statusMessage || ""}: ${bodyExcerpt(data)}`.trim()));
+  }
+  try { resolve(JSON.parse(data)); }
+  catch { reject(new Error(`Invalid JSON response (status ${status}, body: ${bodyExcerpt(data)})`)); }
+}
+
 function apiGet(urlPath) {
   return new Promise((resolve, reject) => {
     const url = new URL(urlPath, API_BASE);
@@ -432,9 +492,7 @@ function apiGet(urlPath) {
     mod.get(url.toString(), { headers: { "Accept": "application/json" } }, (res) => {
       let data = "";
       res.on("data", chunk => data += chunk);
-      res.on("end", () => {
-        try { resolve(JSON.parse(data)); } catch (e) { reject(new Error("Invalid JSON response")); }
-      });
+      res.on("end", () => settleResponse(res, data, resolve, reject));
     }).on("error", reject);
   });
 }
@@ -449,9 +507,7 @@ function apiPost(urlPath, body, token) {
     const req = mod.request(url.toString(), { method: "POST", headers }, (res) => {
       let data = "";
       res.on("data", chunk => data += chunk);
-      res.on("end", () => {
-        try { resolve(JSON.parse(data)); } catch (e) { reject(new Error("Invalid JSON response")); }
-      });
+      res.on("end", () => settleResponse(res, data, resolve, reject));
     });
     req.on("error", reject);
     req.write(payload);
@@ -490,6 +546,7 @@ async function get(args) {
   const { flags, positional } = parseFlags(args);
   const id = positional[0];
   if (!id) return ui.err("Usage: skillbook get <skill-id> [--force]");
+  if (!checkName(id, "skill id")) return;
   store.ensureDirs();
 
   const dest = path.join(STORE_DIR, id);
@@ -527,10 +584,22 @@ async function get(args) {
   }
 }
 
+// Resolve a catalog search-result list to a single skill by exact id, then by
+// exact name (case-insensitive, trimmed). Returns undefined to mean "skip" —
+// callers must NOT fall back to results[0]; the search engine's best-effort
+// top hit can return a different skill than what the set actually references.
+function resolveExactSkill(results, skillName) {
+  if (!Array.isArray(results) || !skillName) return undefined;
+  const norm = String(skillName).toLowerCase().trim();
+  return results.find(r => r && r.id === skillName)
+    || results.find(r => r && typeof r.name === "string" && r.name.toLowerCase().trim() === norm);
+}
+
 // ===== GET-SET (download entire set from catalog) =====
 async function getSet(args) {
   const id = args[0];
   if (!id) return ui.err("Usage: skillbook get-set <set-id>");
+  if (!checkName(id, "set id")) return;
   store.ensureDirs();
 
   try {
@@ -557,10 +626,14 @@ async function getSet(args) {
       // Search for the skill by name in catalog
       const skillsData = await apiGet(`/api/agent/search?q=${encodeURIComponent(skillName)}`);
       const results = skillsData.results || skillsData.skills || [];
-      const match = results[0]; // Best match
+      const match = resolveExactSkill(results, skillName);
 
       if (match) {
         const skillId = match.id;
+        if (!store.isValidName(skillId)) {
+          ui.warn(`Catalog returned invalid skill id "${skillId}", skipping.`);
+          continue;
+        }
         const dest = path.join(STORE_DIR, skillId);
         if (!fs.existsSync(dest)) {
           const installData = await apiGet(`/api/agent/install/${encodeURIComponent(skillId)}`);
@@ -578,12 +651,16 @@ async function getSet(args) {
         }
         downloadedSkills.push(skillId);
       } else {
-        ui.warn(`Could not find skill matching "${skillName}"`);
+        ui.warn(`Could not uniquely resolve "${skillName}" — no exact id/name match in catalog.`);
       }
     }
 
     // Create local set
     const setName = target.id || target.name;
+    if (!store.isValidName(setName)) {
+      ui.err(`Catalog returned invalid set name "${setName}", aborting save.`);
+      return;
+    }
     store.saveSet(setName, {
       description: target.description || "",
       skills: downloadedSkills,
@@ -620,6 +697,7 @@ async function publishRemote(args) {
   const { flags, positional } = parseFlags(args);
   const setName = positional[0];
   if (!setName) return ui.err("Usage: skillbook publish-remote <set-name>");
+  if (!checkName(setName, "set name")) return;
 
   const config = store.readConfig();
   if (!config.apiKey) {
@@ -742,4 +820,4 @@ function helpFull() {
 `);
 }
 
-module.exports = { init, add, importSkill, install, create, equip, unequip, fork, agent, publish, publishRemote, list, status, help: helpFull, search, get, getSet, login, browse };
+module.exports = { init, add, importSkill, install, create, equip, unequip, fork, agent, publish, publishRemote, list, status, help: helpFull, search, get, getSet, login, browse, _internal: { settleResponse, resolveExactSkill } };
