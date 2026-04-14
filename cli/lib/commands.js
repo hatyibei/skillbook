@@ -584,6 +584,17 @@ async function get(args) {
   }
 }
 
+// Resolve a catalog search-result list to a single skill by exact id, then by
+// exact name (case-insensitive, trimmed). Returns undefined to mean "skip" —
+// callers must NOT fall back to results[0]; the search engine's best-effort
+// top hit can return a different skill than what the set actually references.
+function resolveExactSkill(results, skillName) {
+  if (!Array.isArray(results) || !skillName) return undefined;
+  const norm = String(skillName).toLowerCase().trim();
+  return results.find(r => r && r.id === skillName)
+    || results.find(r => r && typeof r.name === "string" && r.name.toLowerCase().trim() === norm);
+}
+
 // ===== GET-SET (download entire set from catalog) =====
 async function getSet(args) {
   const id = args[0];
@@ -615,7 +626,7 @@ async function getSet(args) {
       // Search for the skill by name in catalog
       const skillsData = await apiGet(`/api/agent/search?q=${encodeURIComponent(skillName)}`);
       const results = skillsData.results || skillsData.skills || [];
-      const match = results[0]; // Best match
+      const match = resolveExactSkill(results, skillName);
 
       if (match) {
         const skillId = match.id;
@@ -640,7 +651,7 @@ async function getSet(args) {
         }
         downloadedSkills.push(skillId);
       } else {
-        ui.warn(`Could not find skill matching "${skillName}"`);
+        ui.warn(`Could not uniquely resolve "${skillName}" — no exact id/name match in catalog.`);
       }
     }
 
@@ -809,4 +820,4 @@ function helpFull() {
 `);
 }
 
-module.exports = { init, add, importSkill, install, create, equip, unequip, fork, agent, publish, publishRemote, list, status, help: helpFull, search, get, getSet, login, browse, _internal: { settleResponse } };
+module.exports = { init, add, importSkill, install, create, equip, unequip, fork, agent, publish, publishRemote, list, status, help: helpFull, search, get, getSet, login, browse, _internal: { settleResponse, resolveExactSkill } };
