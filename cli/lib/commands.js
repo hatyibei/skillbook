@@ -448,6 +448,18 @@ function help() {
 }
 
 // ===== API Helper =====
+// Surface HTTP status and a body excerpt so users can tell 401/500/HTML errors
+// apart from genuine JSON parse failures.
+function bodyExcerpt(s) { return (s || "").slice(0, 120).replace(/\s+/g, " ").trim(); }
+function settleResponse(res, data, resolve, reject) {
+  const status = res.statusCode || 0;
+  if (status < 200 || status >= 300) {
+    return reject(new Error(`HTTP ${status} ${res.statusMessage || ""}: ${bodyExcerpt(data)}`.trim()));
+  }
+  try { resolve(JSON.parse(data)); }
+  catch { reject(new Error(`Invalid JSON response (status ${status}, body: ${bodyExcerpt(data)})`)); }
+}
+
 function apiGet(urlPath) {
   return new Promise((resolve, reject) => {
     const url = new URL(urlPath, API_BASE);
@@ -455,9 +467,7 @@ function apiGet(urlPath) {
     mod.get(url.toString(), { headers: { "Accept": "application/json" } }, (res) => {
       let data = "";
       res.on("data", chunk => data += chunk);
-      res.on("end", () => {
-        try { resolve(JSON.parse(data)); } catch (e) { reject(new Error("Invalid JSON response")); }
-      });
+      res.on("end", () => settleResponse(res, data, resolve, reject));
     }).on("error", reject);
   });
 }
@@ -472,9 +482,7 @@ function apiPost(urlPath, body, token) {
     const req = mod.request(url.toString(), { method: "POST", headers }, (res) => {
       let data = "";
       res.on("data", chunk => data += chunk);
-      res.on("end", () => {
-        try { resolve(JSON.parse(data)); } catch (e) { reject(new Error("Invalid JSON response")); }
-      });
+      res.on("end", () => settleResponse(res, data, resolve, reject));
     });
     req.on("error", reject);
     req.write(payload);
@@ -776,4 +784,4 @@ function helpFull() {
 `);
 }
 
-module.exports = { init, add, importSkill, install, create, equip, unequip, fork, agent, publish, publishRemote, list, status, help: helpFull, search, get, getSet, login, browse };
+module.exports = { init, add, importSkill, install, create, equip, unequip, fork, agent, publish, publishRemote, list, status, help: helpFull, search, get, getSet, login, browse, _internal: { settleResponse } };
