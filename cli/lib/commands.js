@@ -253,15 +253,29 @@ function unequip() {
   const config = store.readConfig();
   const agent = config.agent || "claude-code";
   const targetDir = path.join(config.projectRoot || process.cwd(), AGENT_SKILL_DIRS[agent]);
-  if (!fs.existsSync(targetDir)) return ui.info("Nothing to unequip.");
+  if (!fs.existsSync(targetDir)) {
+    config.activeSet = null;
+    store.writeConfig(config);
+    return ui.info("Nothing to unequip.");
+  }
+
+  // Mirror equip()'s legacy-file cleanup so the pair is symmetric: any
+  // `<skill>.md` regular file matching a skill in the currently-active set
+  // is skillbook's leftover from older versions and must be removed too.
+  const activeSetData = config.activeSet ? store.getSet(config.activeSet) : null;
+  const skillNames = new Set((activeSetData && activeSetData.skills) || []);
 
   let removed = 0;
   for (const item of fs.readdirSync(targetDir)) {
     const p = path.join(targetDir, item);
-    const isLink = fs.lstatSync(p).isSymbolicLink();
+    const lst = fs.lstatSync(p);
+    const isLink = lst.isSymbolicLink();
     const isInstructions = item.startsWith("_") && item.endsWith("_instructions.md");
+    const legacyName = item.endsWith(".md") ? item.slice(0, -3) : null;
+    const isLegacyFile = lst.isFile() && legacyName && skillNames.has(legacyName);
     if (isLink) { fs.unlinkSync(p); removed++; continue; }
     if (isInstructions) { fs.unlinkSync(p); removed++; continue; }
+    if (isLegacyFile) { fs.unlinkSync(p); removed++; continue; }
   }
   config.activeSet = null;
   store.writeConfig(config);
