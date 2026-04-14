@@ -7,6 +7,16 @@ const { STORE_DIR, SETS_DIR, AGENT_SKILL_DIRS, C, API_BASE } = require("./consta
 const store = require("./store");
 const ui = require("./ui");
 
+// Reject names that could escape ~/.skillbook/ via path traversal or shell metachars.
+// Returns true if validated, false (with ui.err) otherwise.
+function checkName(name, label = "name") {
+  if (!store.isValidName(name)) {
+    ui.err(`Invalid ${label} ${JSON.stringify(name)} — ${store.NAME_HINT}`);
+    return false;
+  }
+  return true;
+}
+
 // ===== parseFlags: --key value pairs from args =====
 function parseFlags(args) {
   const flags = {}; const positional = [];
@@ -39,6 +49,7 @@ function init(args) {
 function add(args) {
   const name = args[0];
   if (!name) return ui.err("Usage: skillbook add <skill-name>");
+  if (!checkName(name, "skill name")) return;
   store.ensureDirs();
   const dir = path.join(STORE_DIR, name);
   const file = path.join(dir, "SKILL.md");
@@ -73,6 +84,7 @@ function importSkill(args) {
   // Git URL
   if (source.startsWith("http") || source.startsWith("git@")) {
     const name = flags.name || path.basename(source, ".git");
+    if (!checkName(name, "skill name")) return;
     const dest = path.join(STORE_DIR, name);
     if (fs.existsSync(dest)) return ui.warn(`"${name}" already exists.`);
     try {
@@ -94,6 +106,7 @@ function importSkill(args) {
   const isFile = fs.statSync(absSource).isFile();
   const defaultName = isFile ? path.basename(absSource, path.extname(absSource)) : path.basename(absSource);
   const name = flags.name || defaultName;
+  if (!checkName(name, "skill name")) return;
   const dest = path.join(STORE_DIR, name);
   if (fs.existsSync(dest)) return ui.warn(`"${name}" already exists.`);
   if (isFile) {
@@ -128,6 +141,7 @@ function install(args) {
     } else {
       for (const sd of skillDirs) {
         const name = path.basename(sd);
+        if (!store.isValidName(name)) { ui.warn(`Skipping invalid skill name "${name}" (${store.NAME_HINT}).`); continue; }
         const dest = path.join(STORE_DIR, name);
         if (!fs.existsSync(dest)) {
           store.copyDirSync(sd, dest);
@@ -161,7 +175,9 @@ function create(args) {
   const { flags, positional } = parseFlags(args);
   const name = positional[0];
   if (!name) return ui.err("Usage: skillbook create <set-name> --skills a,b --desc \"...\"");
+  if (!checkName(name, "set name")) return;
   const skills = flags.skills ? flags.skills.split(",").map(s => s.trim()) : [];
+  for (const s of skills) { if (!checkName(s, "skill name")) return; }
   const desc = flags.desc || "";
 
   store.saveSet(name, {
@@ -180,6 +196,7 @@ function create(args) {
 function equip(args) {
   const name = args[0];
   if (!name) return ui.err("Usage: skillbook equip <set-name>");
+  if (!checkName(name, "set name")) return;
   const config = store.readConfig();
   const setData = store.getSet(name);
   if (!setData) {
@@ -257,9 +274,14 @@ function fork(args) {
   const source = positional[0];
   const newName = flags.name || (source ? `${source}-fork` : null);
   if (!source) return ui.err("Usage: skillbook fork <set-name> --name <new-name>");
+  if (!checkName(source, "set name")) return;
+  if (!checkName(newName, "set name")) return;
 
   const setData = store.getSet(source);
   if (!setData) return ui.err(`Set "${source}" not found.`);
+  if (store.getSet(newName) && !flags.force) {
+    return ui.warn(`Set "${newName}" already exists. Use --force to overwrite.`);
+  }
 
   const forked = { ...setData, forkedFrom: source, created: new Date().toISOString() };
   store.saveSet(newName, forked);
@@ -301,6 +323,7 @@ function publish(args) {
   const { flags, positional } = parseFlags(args);
   const setName = positional[0];
   if (!setName) return ui.err("Usage: skillbook publish <set-name>");
+  if (!checkName(setName, "set name")) return;
 
   const setData = store.getSet(setName);
   if (!setData) return ui.err(`Set "${setName}" not found.`);
@@ -490,6 +513,7 @@ async function get(args) {
   const { flags, positional } = parseFlags(args);
   const id = positional[0];
   if (!id) return ui.err("Usage: skillbook get <skill-id> [--force]");
+  if (!checkName(id, "skill id")) return;
   store.ensureDirs();
 
   const dest = path.join(STORE_DIR, id);
@@ -531,6 +555,7 @@ async function get(args) {
 async function getSet(args) {
   const id = args[0];
   if (!id) return ui.err("Usage: skillbook get-set <set-id>");
+  if (!checkName(id, "set id")) return;
   store.ensureDirs();
 
   try {
@@ -561,6 +586,10 @@ async function getSet(args) {
 
       if (match) {
         const skillId = match.id;
+        if (!store.isValidName(skillId)) {
+          ui.warn(`Catalog returned invalid skill id "${skillId}", skipping.`);
+          continue;
+        }
         const dest = path.join(STORE_DIR, skillId);
         if (!fs.existsSync(dest)) {
           const installData = await apiGet(`/api/agent/install/${encodeURIComponent(skillId)}`);
@@ -584,6 +613,10 @@ async function getSet(args) {
 
     // Create local set
     const setName = target.id || target.name;
+    if (!store.isValidName(setName)) {
+      ui.err(`Catalog returned invalid set name "${setName}", aborting save.`);
+      return;
+    }
     store.saveSet(setName, {
       description: target.description || "",
       skills: downloadedSkills,
@@ -620,6 +653,7 @@ async function publishRemote(args) {
   const { flags, positional } = parseFlags(args);
   const setName = positional[0];
   if (!setName) return ui.err("Usage: skillbook publish-remote <set-name>");
+  if (!checkName(setName, "set name")) return;
 
   const config = store.readConfig();
   if (!config.apiKey) {

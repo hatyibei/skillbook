@@ -2,6 +2,14 @@ const fs = require("fs");
 const path = require("path");
 const { SKILLBOOK_HOME, STORE_DIR, SETS_DIR, CONFIG_FILE } = require("./constants");
 
+// Skill / set names become directory or file names under ~/.skillbook/.
+// Restrict to a safe charset to prevent path traversal and shell surprises.
+const NAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/;
+function isValidName(name) {
+  return typeof name === "string" && NAME_RE.test(name);
+}
+const NAME_HINT = "names must match [a-zA-Z0-9][a-zA-Z0-9._-]{0,63}";
+
 function ensureDirs() {
   for (const dir of [SKILLBOOK_HOME, STORE_DIR, SETS_DIR]) {
     fs.mkdirSync(dir, { recursive: true });
@@ -76,4 +84,4 @@ function copyDirSync(src, dest) {
   }
 }
 
-module.exports = { ensureDirs, readConfig, writeConfig, listSkills, listSets, getSet, saveSet, readSkillMeta, copyDirSync };
+module.exports = { ensureDirs, readConfig, writeConfig, listSkills, listSets, getSet, saveSet, readSkillMeta, copyDirSync, isValidName, NAME_HINT };
