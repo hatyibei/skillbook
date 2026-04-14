@@ -320,15 +320,26 @@ function agent(args) {
   }
 
   if (!AGENT_SKILL_DIRS[newAgent]) return ui.err(`Unknown agent: ${newAgent}`);
+
+  const oldAgent = config.agent;
+  const activeSet = config.activeSet;
+
+  // Clean up the OLD agent's skills dir before switching, so we don't leave
+  // stale symlinks pointing into the store from the previously-active agent.
+  // unequip() reads config from disk, so call it while config.agent is still oldAgent.
+  if (activeSet && oldAgent && oldAgent !== newAgent) {
+    unequip();
+  }
+
   config.agent = newAgent;
+  if (activeSet) config.activeSet = activeSet; // unequip cleared it; restore for re-equip below
   store.writeConfig(config);
   ui.ok(`Switched to ${newAgent}`);
   ui.info(`Skills dir: ${AGENT_SKILL_DIRS[newAgent]}`);
 
-  // Re-equip if set is active
-  if (config.activeSet) {
-    ui.info(`Re-equipping "${config.activeSet}" for ${newAgent}...`);
-    equip([config.activeSet]);
+  if (activeSet) {
+    ui.info(`Re-equipping "${activeSet}" for ${newAgent}...`);
+    equip([activeSet]);
   }
 }
 
